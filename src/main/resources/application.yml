@@ -1,0 +1,50 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/Community?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: root
+    password: "00000000"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  thymeleaf:
+    cache: false
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        show_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 5MB
+      max-request-size: 25MB
+
+server:
+  port: 8080
+  url: http://localhost:8080
+
+file:
+  upload-dir: ${user.home}/uploads/images
+  base-url: http://localhost:8080
+
+
+upload:
+  dir: uploads/images/
+
+# ✅ JWT 설정 (개선됨!)
+jwt:
+  secret: your-secret-key-must-be-at-least-256-bits-long-please-change-this-in-production-environment-make-it-even-longer
+  access-token:
+    expiration: 86400000        # AccessToken: 24시간 (밀리초)
+  refresh-token:
+    expiration: 2592000000      # RefreshToken: 30일 (밀리초)
+
+logging:
+  level:
+    com.community: DEBUG
+    com.kateboo.cloud.community: DEBUG
