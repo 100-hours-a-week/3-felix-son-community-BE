@@ -39,6 +39,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/images").permitAll()
                         // 정적 리소스 경로인 /uploads/** 에 대한 접근을 허용합니다.
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/terms/**").permitAll()

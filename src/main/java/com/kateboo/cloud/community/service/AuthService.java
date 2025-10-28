@@ -33,6 +33,9 @@ public class AuthService {
     @Value("${jwt.refresh-token.expiration}")
     private long refreshTokenExpiration;
 
+    // ✅ 탈퇴 후 복구 가능 기간 (7일)
+    private static final int DEACTIVATION_GRACE_PERIOD_DAYS = 7;
+
     /**
      * 회원가입
      */
@@ -56,22 +59,67 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        return generateAuthResponse(savedUser);
+        return generateAuthResponse(savedUser, false);  // 회원가입은 복구 아님
     }
 
     /**
-     * 로그인
+     * 로그인 (계정 복구 로직 포함)
      */
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmailAndIsActiveTrue(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다"));
+        log.info("로그인 시도: email={}", request.getEmail());
 
+        // ✅ 1단계: 사용자 조회 (활성/비활성 모두)
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> {
+                    log.error("로그인 실패: 이메일을 찾을 수 없음 - {}", request.getEmail());
+                    return new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다");
+                });
+
+        // ✅ 2단계: 비밀번호 검증
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            log.error("로그인 실패: 비밀번호 불일치 - email={}", request.getEmail());
             throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다");
         }
 
-        return generateAuthResponse(user);
+        // ✅ 3단계: 탈퇴 계정 복구 처리
+        boolean accountRestored = false;  // 복구 여부 플래그
+
+        if (!user.getIsActive()) {
+            LocalDateTime deactivatedAt = user.getDeactivatedAt();
+
+            if (deactivatedAt == null) {
+                log.error("비활성 계정이지만 deactivated_at이 null: userId={}", user.getUserId());
+                throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다");
+            }
+
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime recoveryDeadline = deactivatedAt.plusDays(DEACTIVATION_GRACE_PERIOD_DAYS);
+
+            // 7일 이내인지 확인
+            if (now.isAfter(recoveryDeadline)) {
+                log.error("로그인 실패: 복구 기간 만료 - userId={}, deactivatedAt={}",
+                        user.getUserId(), deactivatedAt);
+                throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다");
+            }
+
+            // ✅ 계정 복구
+            log.info("계정 복구 시작: userId={}, email={}, 탈퇴일={}",
+                    user.getUserId(), user.getEmail(), deactivatedAt);
+
+            user.setIsActive(true);
+            user.setDeactivatedAt(null);
+            userRepository.save(user);
+
+            accountRestored = true;  // ✅ 복구 플래그 설정
+
+            log.info("✅ 계정 복구 완료: userId={}, email={}", user.getUserId(), user.getEmail());
+        }
+
+        log.info("로그인 성공: userId={}, email={}, accountRestored={}",
+                user.getUserId(), user.getEmail(), accountRestored);
+
+        return generateAuthResponse(user, accountRestored);  // ✅ 복구 여부 전달
     }
 
     /**
@@ -95,7 +143,7 @@ public class AuthService {
         User user = refreshToken.getUser();
 
         refreshTokenRepository.delete(refreshToken);
-        return generateAuthResponse(user);
+        return generateAuthResponse(user, false);  // 리프레시는 복구 아님
     }
 
     /**
@@ -113,9 +161,9 @@ public class AuthService {
     }
 
     /**
-     * AuthResponse 생성 (AccessToken + RefreshToken)
+     * ✅ AuthResponse 생성 (AccessToken + RefreshToken + 복구 여부)
      */
-    private AuthResponse generateAuthResponse(User user) {
+    private AuthResponse generateAuthResponse(User user, boolean accountRestored) {
         // AccessToken 생성
         String accessToken = jwtTokenProvider.generateToken(
                 user.getUserId(),
@@ -133,7 +181,7 @@ public class AuthService {
 
         refreshTokenRepository.save(refreshToken);
 
-        log.info("토큰 발급: userId={}", user.getUserId());
+        log.info("토큰 발급: userId={}, accountRestored={}", user.getUserId(), accountRestored);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
@@ -144,6 +192,7 @@ public class AuthService {
                 .email(user.getEmail())
                 .nickname(user.getNickname())
                 .profileImageUrl(user.getProfileImageUrl())
+                .accountRestored(accountRestored)  // ✅ 복구 여부 포함
                 .build();
     }
 

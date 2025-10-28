@@ -61,16 +61,6 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * 회원 탈퇴 - 2단계: 하드 삭제
-     * DELETE /api/users/me
-     * DB에서 완전 삭제 (복구 불가능)
-     */
-    @DeleteMapping("/me")
-    public ResponseEntity<Void> hardDeleteAccount(@CurrentUser UUID userId) {
-        userService.hardDeleteAccount(userId);
-        return ResponseEntity.noContent().build();
-    }
 
     /**
      * 계정 복구
