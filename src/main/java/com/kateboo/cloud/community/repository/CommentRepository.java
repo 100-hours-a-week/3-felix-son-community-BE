@@ -17,13 +17,4 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
      */
     Page<Comment> findByPost_PostId(UUID postId, Pageable pageable);
 
-    /**
-     * 특정 사용자의 댓글 목록 조회 (Pageable로 정렬 자유롭게)
-     */
-    Page<Comment> findByUser_UserId(UUID userId, Pageable pageable);
-
-    /**
-     * 특정 게시글의 댓글 수 카운트
-     */
-    long countByPost_PostId(UUID postId);
 }

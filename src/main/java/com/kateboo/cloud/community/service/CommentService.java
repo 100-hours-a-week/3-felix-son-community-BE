@@ -6,6 +6,8 @@ import com.kateboo.cloud.community.dto.response.PageResponse;
 import com.kateboo.cloud.community.entity.Comment;
 import com.kateboo.cloud.community.entity.Post;
 import com.kateboo.cloud.community.entity.User;
+import com.kateboo.cloud.community.exception.NotFoundException;
+import com.kateboo.cloud.community.exception.ForbiddenException;
 import com.kateboo.cloud.community.repository.CommentRepository;
 import com.kateboo.cloud.community.repository.PostRepository;
 import com.kateboo.cloud.community.repository.UserRepository;
@@ -43,10 +45,10 @@ public class CommentService {
     @Transactional
     public CommentResponse createComment(UUID userId, UUID postId, CommentRequest request) {
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다"));
+                .orElseThrow(() -> new NotFoundException("게시글을 찾을 수 없습니다"));
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다"));
 
         Comment comment = Comment.builder()
                 .body(request.getBody())
@@ -71,10 +73,10 @@ public class CommentService {
     @Transactional
     public CommentResponse updateComment(UUID userId, UUID commentId, CommentRequest request) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다"));
+                .orElseThrow(() -> new NotFoundException("댓글을 찾을 수 없습니다"));
 
         if (!comment.getUser().getUserId().equals(userId)) {
-            throw new IllegalArgumentException("본인의 댓글만 수정할 수 있습니다");
+            throw new ForbiddenException("본인의 댓글만 수정할 수 있습니다");
         }
 
         comment.setBody(request.getBody());
@@ -91,10 +93,10 @@ public class CommentService {
     @Transactional
     public void deleteComment(UUID userId, UUID commentId) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다"));
+                .orElseThrow(() -> new NotFoundException("댓글을 찾을 수 없습니다"));
 
         if (!comment.getUser().getUserId().equals(userId)) {
-            throw new IllegalArgumentException("본인의 댓글만 삭제할 수 있습니다");
+            throw new ForbiddenException("본인의 댓글만 삭제할 수 있습니다");
         }
 
         Post post = comment.getPost();

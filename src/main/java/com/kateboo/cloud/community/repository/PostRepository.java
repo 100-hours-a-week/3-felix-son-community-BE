@@ -27,10 +27,4 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     @EntityGraph(attributePaths = {"user", "postStats", "postImages"})
     Optional<Post> findById(UUID postId);
 
-    /**
-     * 사용자별 게시글 조회
-     */
-    @EntityGraph(attributePaths = {"postStats", "postImages"})
-    @Query("SELECT p FROM Post p WHERE p.user.userId = :userId ORDER BY p.createdAt DESC")
-    Page<Post> findByUser_UserId(@Param("userId") UUID userId, Pageable pageable);
 }

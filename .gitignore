@@ -39,6 +39,5 @@ HELP.md
 .env.local
 .env.*.local
 
-# Application properties (if contains sensitive info)
-# application-local.properties
-# application-dev.properties
+# application.yml
+/src/main/resources/application.yml
