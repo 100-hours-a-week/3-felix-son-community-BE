@@ -1,16 +1,24 @@
 package com.kateboo.cloud.community.config;
 
+import com.kateboo.cloud.community.security.CurrentUserArgumentResolver;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.util.List;
+
 @Slf4j
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+
+    @Autowired
+    private CurrentUserArgumentResolver currentUserArgumentResolver;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -21,12 +29,17 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     @Override
+    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+        resolvers.add(currentUserArgumentResolver); // ✅ 추가
+    }
+
+    @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:3000")  // 프론트엔드 주소
-                .allowedMethods("GET", "POST", "PUT", "PATCH","DELETE", "OPTIONS")
+                .allowedOrigins("http://localhost:3000", "http://localhost:8080") // 프론트엔드 주소 추가
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
-                .allowCredentials(true)
+                .allowCredentials(true) // ✅ 쿠키 전송 허용
                 .exposedHeaders("Authorization");
     }
 

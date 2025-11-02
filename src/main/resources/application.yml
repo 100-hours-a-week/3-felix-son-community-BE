@@ -36,13 +36,12 @@ file:
 upload:
   dir: uploads/images/
 
-# ✅ JWT 설정 (개선됨!)
 jwt:
-  secret: your-secret-key-must-be-at-least-256-bits-long-please-change-this-in-production-environment-make-it-even-longer
+  secret: your-very-long-secret-key-at-least-256-bits-long-for-hs256-algorithm
   access-token:
-    expiration: 86400000        # AccessToken: 24시간 (밀리초)
+    expiration: 900000        # 15분 (밀리초)
   refresh-token:
-    expiration: 2592000000      # RefreshToken: 30일 (밀리초)
+    expiration: 604800000     # 7일 (밀리초)
 
 logging:
   level:

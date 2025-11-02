@@ -1,7 +1,6 @@
 package com.kateboo.cloud.community.service;
 
 import com.kateboo.cloud.community.dto.request.LoginRequest;
-import com.kateboo.cloud.community.dto.request.RefreshTokenRequest;
 import com.kateboo.cloud.community.dto.request.SignupRequest;
 import com.kateboo.cloud.community.dto.response.AuthResponse;
 import com.kateboo.cloud.community.entity.RefreshToken;
@@ -57,7 +56,14 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        return generateAuthResponse(savedUser, false);
+        // 회원가입 시에는 토큰 발급 안 함 (로그인 필요)
+        return AuthResponse.builder()
+                .userId(savedUser.getUserId())
+                .email(savedUser.getEmail())
+                .nickname(savedUser.getNickname())
+                .profileImageUrl(savedUser.getProfileImageUrl())
+                .accountRestored(false)
+                .build();
     }
 
     @Transactional
@@ -74,6 +80,8 @@ public class AuthService {
             log.error("로그인 실패: 비밀번호 불일치 - email={}", request.getEmail());
             throw new BadRequestException("이메일 또는 비밀번호가 올바르지 않습니다");
         }
+
+        boolean accountRestored = false;
 
         if (!user.getIsActive()) {
             LocalDateTime deactivatedAt = user.getDeactivatedAt();
@@ -99,51 +107,78 @@ public class AuthService {
             user.setDeactivatedAt(null);
             userRepository.save(user);
 
+            accountRestored = true;
+
             log.info("계정 복구 완료: userId={}, email={}", user.getUserId(), user.getEmail());
         }
 
         log.info("로그인 성공: userId={}, email={}", user.getUserId(), user.getEmail());
 
-        return generateAuthResponse(user, false);
+        return generateAuthResponse(user, accountRestored);
     }
 
     @Transactional
-    public AuthResponse refresh(RefreshTokenRequest request) {
+    public AuthResponse refresh(String refreshTokenValue) {
+        log.info("토큰 갱신 요청");
+
         RefreshToken refreshToken = refreshTokenRepository
-                .findByToken(request.getRefreshToken())
-                .orElseThrow(() -> new NotFoundException("유효하지 않은 RefreshToken입니다"));
+                .findByToken(refreshTokenValue)
+                .orElseThrow(() -> {
+                    log.warn("유효하지 않은 RefreshToken");
+                    return new NotFoundException("유효하지 않은 RefreshToken입니다");
+                });
 
         if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            log.warn("만료된 RefreshToken: userId={}", refreshToken.getUser().getUserId());
             refreshTokenRepository.delete(refreshToken);
             throw new BadRequestException("만료된 RefreshToken입니다");
         }
 
         if (refreshToken.getRevokedAt() != null) {
+            log.warn("취소된 RefreshToken: userId={}", refreshToken.getUser().getUserId());
             throw new BadRequestException("취소된 RefreshToken입니다");
         }
 
         User user = refreshToken.getUser();
 
+        // ✅ Refresh Token Rotation: 기존 토큰 삭제
         refreshTokenRepository.delete(refreshToken);
+
+        log.info("토큰 갱신 성공: userId={}", user.getUserId());
 
         return generateAuthResponse(user, false);
     }
 
     @Transactional
     public void logout(String refreshTokenValue) {
+        if (refreshTokenValue == null || refreshTokenValue.isEmpty()) {
+            log.warn("로그아웃 시도: Refresh Token 없음");
+            return;
+        }
+
         RefreshToken refreshToken = refreshTokenRepository
                 .findByToken(refreshTokenValue)
-                .orElseThrow(() -> new NotFoundException("유효하지 않은 RefreshToken입니다"));
+                .orElse(null);
 
-        refreshToken.setRevokedAt(LocalDateTime.now());
-
-        log.info("로그아웃: userId={}", refreshToken.getUser().getUserId());
+        if (refreshToken != null) {
+            refreshToken.setRevokedAt(LocalDateTime.now());
+            log.info("로그아웃: userId={}", refreshToken.getUser().getUserId());
+        } else {
+            log.warn("로그아웃 시도: 유효하지 않은 Refresh Token");
+        }
     }
 
+    /**
+     * AuthResponse 생성 (Access Token + Refresh Token)
+     */
     private AuthResponse generateAuthResponse(User user, boolean accountRestored) {
+        // 1. Access Token 생성
         String accessToken = jwtTokenProvider.generateToken(user.getUserId(), user.getEmail());
+
+        // 2. Refresh Token 생성 (UUID)
         String refreshTokenValue = UUID.randomUUID().toString();
 
+        // 3. Refresh Token DB 저장
         RefreshToken refreshToken = RefreshToken.builder()
                 .token(refreshTokenValue)
                 .user(user)
@@ -154,16 +189,23 @@ public class AuthService {
 
         log.info("토큰 발급: userId={}, accountRestored={}", user.getUserId(), accountRestored);
 
+        // 4. AuthResponse 반환
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshTokenValue)
-                .tokenType("Bearer")
-                .expiresIn(jwtTokenProvider.getAccessTokenExpirationInSeconds())
                 .userId(user.getUserId())
                 .email(user.getEmail())
                 .nickname(user.getNickname())
                 .profileImageUrl(user.getProfileImageUrl())
                 .accountRestored(accountRestored)
                 .build();
+    }
+
+    /**
+     * 사용자 조회 (토큰 갱신 시 사용)
+     */
+    public User getUserById(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
     }
 }

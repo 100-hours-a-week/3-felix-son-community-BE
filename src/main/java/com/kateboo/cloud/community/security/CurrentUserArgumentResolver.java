@@ -1,9 +1,7 @@
-package com.kateboo.cloud.community.config;
+package com.kateboo.cloud.community.security;
 
-import com.kateboo.cloud.community.security.CurrentUser;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.MethodParameter;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
@@ -17,8 +15,8 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
-        return parameter.hasParameterAnnotation(CurrentUser.class)
-                && parameter.getParameterType().equals(UUID.class);
+        return parameter.hasParameterAnnotation(CurrentUser.class) &&
+                parameter.getParameterType().equals(UUID.class);
     }
 
     @Override
@@ -26,13 +24,15 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
                                   ModelAndViewContainer mavContainer,
                                   NativeWebRequest webRequest,
                                   WebDataBinderFactory binderFactory) {
+        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new IllegalStateException("인증이 필요합니다");
+        if (request != null) {
+            Object userId = request.getAttribute("userId");
+            if (userId instanceof UUID) {
+                return userId;
+            }
         }
 
-        return authentication.getPrincipal();
+        return null;
     }
 }

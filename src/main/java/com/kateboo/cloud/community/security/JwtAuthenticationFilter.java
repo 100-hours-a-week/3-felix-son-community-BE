@@ -6,59 +6,53 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-    @Autowired
-    private JwtTokenProvider jwtTokenProvider;
 
-    // ✅ 이 메서드 추가!
+    private final JwtTokenProvider jwtTokenProvider;
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
-        log.info("shouldNotFilter 체크: {}", path);
+        log.debug("JWT 필터 체크: {}", path);
 
-        // /api/auth/** 경로는 JWT 필터 건너뛰기
-        boolean skip = path.startsWith("/api/auth/") ||
-                       path.startsWith("/uploads/") ||
-                       path.startsWith("/terms/");
-
-        log.info("JWT 필터 건너뛰기: {}", skip);
-
-        return skip;
+        // 인증이 필요 없는 경로
+        return path.startsWith("/api/auth/") ||
+                path.startsWith("/uploads/") ||
+                path.startsWith("/terms/") ||
+                path.startsWith("/css/") ||
+                path.startsWith("/js/") ||
+                path.startsWith("/images/");
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String jwt = extractToken(request);
+        try {
+            String jwt = extractToken(request);
 
-        if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
-            UUID userId = jwtTokenProvider.getUserIdFromToken(jwt);
+            if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
+                UUID userId = jwtTokenProvider.getUserIdFromToken(jwt);
 
-            // ✅ 중요! userId를 principal로 설정
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            userId,  // ✅ 이게 @CurrentUser로 전달됨!
-                            null,
-                            Collections.emptyList()
-                    );
-
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                // ✅ Request Attribute에 userId 저장 (Spring Security 없이)
+                request.setAttribute("userId", userId);
+                log.debug("인증 성공: userId={}", userId);
+            }
+        } catch (Exception e) {
+            log.error("JWT 인증 실패: {}", e.getMessage());
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("{\"error\":\"Unauthorized\"}");
+            return;
         }
 
         filterChain.doFilter(request, response);
