@@ -3,8 +3,9 @@ package com.kateboo.cloud.community.controller;
 import com.kateboo.cloud.community.dto.request.PasswordChangeRequest;
 import com.kateboo.cloud.community.dto.request.ProfileUpdateRequest;
 import com.kateboo.cloud.community.dto.response.UserResponse;
-import com.kateboo.cloud.community.security.CurrentUser;
 import com.kateboo.cloud.community.service.UserService;
+import com.kateboo.cloud.community.util.SessionUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +24,8 @@ public class UserController {
      * 내 정보 조회
      */
     @GetMapping("/me")
-    public ResponseEntity<UserResponse> getMyInfo(@CurrentUser UUID userId) {
+    public ResponseEntity<UserResponse> getMyInfo(HttpServletRequest request) {
+        UUID userId = SessionUtil.getUserIdFromSession(request);
         UserResponse response = userService.getMyInfo(userId);
         return ResponseEntity.ok(response);
     }
@@ -33,9 +35,10 @@ public class UserController {
      */
     @PatchMapping("/me")
     public ResponseEntity<UserResponse> updateMyProfile(
-            @CurrentUser UUID userId,
-            @Valid @RequestBody ProfileUpdateRequest request) {
-        UserResponse response = userService.updateMyProfile(userId, request);
+            HttpServletRequest request,
+            @Valid @RequestBody ProfileUpdateRequest profileUpdateRequest) {
+        UUID userId = SessionUtil.getUserIdFromSession(request);
+        UserResponse response = userService.updateMyProfile(userId, profileUpdateRequest);
         return ResponseEntity.ok(response);
     }
 
@@ -44,9 +47,10 @@ public class UserController {
      */
     @PatchMapping("/me/password")
     public ResponseEntity<Void> changePassword(
-            @CurrentUser UUID userId,
-            @Valid @RequestBody PasswordChangeRequest request) {
-        userService.changePassword(userId, request);
+            HttpServletRequest request,
+            @Valid @RequestBody PasswordChangeRequest passwordChangeRequest) {
+        UUID userId = SessionUtil.getUserIdFromSession(request);
+        userService.changePassword(userId, passwordChangeRequest);
         return ResponseEntity.ok().build();
     }
 
@@ -56,7 +60,8 @@ public class UserController {
      * is_active를 false로 변경 (복구 가능)
      */
     @PatchMapping("/me/deactivate")
-    public ResponseEntity<Void> softDeleteAccount(@CurrentUser UUID userId) {
+    public ResponseEntity<Void> softDeleteAccount(HttpServletRequest request) {
+        UUID userId = SessionUtil.getUserIdFromSession(request);
         userService.softDeleteAccount(userId);
         return ResponseEntity.noContent().build();
     }
@@ -68,7 +73,8 @@ public class UserController {
      * is_active를 true로 변경
      */
     @PatchMapping("/me/restore")
-    public ResponseEntity<UserResponse> restoreAccount(@CurrentUser UUID userId) {
+    public ResponseEntity<UserResponse> restoreAccount(HttpServletRequest request) {
+        UUID userId = SessionUtil.getUserIdFromSession(request);
         UserResponse response = userService.restoreAccount(userId);
         return ResponseEntity.ok(response);
     }

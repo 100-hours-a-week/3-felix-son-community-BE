@@ -27,22 +27,30 @@ spring:
 server:
   port: 8080
   url: http://localhost:8080
+  servlet:
+    session:
+          timeout: 30m                     # 세션 타임아웃 30분 (필요에 따라 조정)
+          cookie:
+            http-only: true                # 자바스크립트에서 쿠키 접근 불가 (XSS 방어)
+            secure: false                  # 로컬 개발 시 false, 운영 시 true (HTTPS 사용 시)
+            same-site: lax                 # CSRF 방어용, 필요한 경우 Strict 또는 None으로 변경
 
 file:
   upload-dir: ${user.home}/uploads/images
   base-url: http://localhost:8080
 
-
 upload:
   dir: uploads/images/
 
-# ✅ JWT 설정 (개선됨!)
+# 세션 관련 설정
+
+# JWT 설정 (현재 사용 안 하려면 삭제 가능)
 jwt:
   secret: your-secret-key-must-be-at-least-256-bits-long-please-change-this-in-production-environment-make-it-even-longer
   access-token:
-    expiration: 86400000        # AccessToken: 24시간 (밀리초)
+    expiration: 86400000               # AccessToken: 24시간 (밀리초)
   refresh-token:
-    expiration: 2592000000      # RefreshToken: 30일 (밀리초)
+    expiration: 2592000000             # RefreshToken: 30일 (밀리초)
 
 logging:
   level:

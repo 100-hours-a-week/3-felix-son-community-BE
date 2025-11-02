@@ -3,8 +3,9 @@ package com.kateboo.cloud.community.controller;
 import com.kateboo.cloud.community.dto.request.CommentRequest;
 import com.kateboo.cloud.community.dto.response.CommentResponse;
 import com.kateboo.cloud.community.dto.response.PageResponse;
-import com.kateboo.cloud.community.security.CurrentUser;
 import com.kateboo.cloud.community.service.CommentService;
+import com.kateboo.cloud.community.util.SessionUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -34,36 +35,39 @@ public class CommentController {
     }
 
     /**
-     * 댓글 작성
+     * 댓글 작성(세션인증설정)
      */
     @PostMapping("/post/{postId}")
     public ResponseEntity<CommentResponse> createComment(
-            @CurrentUser UUID userId,
+            HttpServletRequest request,
             @PathVariable UUID postId,
-            @Valid @RequestBody CommentRequest request) {
-        CommentResponse response = commentService.createComment(userId, postId, request);
+            @Valid @RequestBody CommentRequest commentRequest) {
+        UUID userId = SessionUtil.getUserIdFromSession(request);
+        CommentResponse response = commentService.createComment(userId, postId, commentRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
-     * 댓글 수정
+     * 댓글 수정(세션인증설정)
      */
     @PutMapping("/{commentId}")
     public ResponseEntity<CommentResponse> updateComment(
-            @CurrentUser UUID userId,
+            HttpServletRequest request,
             @PathVariable UUID commentId,
-            @Valid @RequestBody CommentRequest request) {
-        CommentResponse response = commentService.updateComment(userId, commentId, request);
+            @Valid @RequestBody CommentRequest commentRequest) {
+        UUID userId = SessionUtil.getUserIdFromSession(request);
+        CommentResponse response = commentService.updateComment(userId, commentId, commentRequest);
         return ResponseEntity.ok(response);
     }
 
     /**
-     * 댓글 삭제
+     * 댓글 삭제(세션인증설정)
      */
     @DeleteMapping("/{commentId}")
     public ResponseEntity<Void> deleteComment(
-            @CurrentUser UUID userId,
+            HttpServletRequest request,
             @PathVariable UUID commentId) {
+        UUID userId = SessionUtil.getUserIdFromSession(request);
         commentService.deleteComment(userId, commentId);
         return ResponseEntity.noContent().build();
     }

@@ -4,7 +4,6 @@ import com.kateboo.cloud.community.dto.request.PasswordChangeRequest;
 import com.kateboo.cloud.community.dto.request.ProfileUpdateRequest;
 import com.kateboo.cloud.community.dto.response.UserResponse;
 import com.kateboo.cloud.community.entity.User;
-import com.kateboo.cloud.community.repository.RefreshTokenRepository;
 import com.kateboo.cloud.community.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

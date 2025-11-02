@@ -6,7 +6,6 @@ import com.kateboo.cloud.community.dto.response.UserResponse;
 import com.kateboo.cloud.community.entity.User;
 import com.kateboo.cloud.community.exception.BadRequestException;
 import com.kateboo.cloud.community.exception.NotFoundException;
-import com.kateboo.cloud.community.repository.RefreshTokenRepository;
 import com.kateboo.cloud.community.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,6 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final RefreshTokenRepository refreshTokenRepository;
 
     // ✅ 탈퇴 후 복구 가능 기간 (7일)
     private static final int DEACTIVATION_GRACE_PERIOD_DAYS = 7;
@@ -107,8 +105,6 @@ public class UserService {
         user.setIsActive(false);
         user.setDeactivatedAt(LocalDateTime.now());  // ✅ 탈퇴 시점 기록
 
-        // 모든 RefreshToken 삭제 (로그아웃 처리)
-        refreshTokenRepository.deleteByUser_UserId(userId);
 
         log.warn("회원 탈퇴 처리 (소프트 삭제) - userId: {}, email: {}", userId, user.getEmail());
         log.info("계정 복구는 {}일 이내 재로그인 시 가능합니다. {}일 후 자동으로 영구 삭제됩니다.",
@@ -217,8 +213,6 @@ public class UserService {
 
         for (User user : expiredUsers) {
             try {
-                // RefreshToken 먼저 삭제
-                refreshTokenRepository.deleteByUser_UserId(user.getUserId());
 
                 // 사용자 영구 삭제
                 userRepository.delete(user);

@@ -45,7 +45,9 @@ public class PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("게시글을 찾을 수 없습니다"));
 
-        post.getPostStats().incrementViewsCount();
+        if (post.getPostStats() != null) {
+            post.getPostStats().incrementViewsCount();
+        }
         return PostResponse.from(post);
     }
 
