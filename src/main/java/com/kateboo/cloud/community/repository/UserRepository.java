@@ -18,10 +18,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     // 닉네임 중복 체크
     boolean existsByNickname(String nickname);
 
-    //
-    // 활성 사용자만 조회 (로그인용)
-    Optional<User> findByEmailAndIsActiveTrue(String email);
-
     Optional<User> findByEmail(String email);
     /**
      * ✅ 7일 지난 비활성 계정 조회

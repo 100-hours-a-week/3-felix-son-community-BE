@@ -2,15 +2,21 @@ package com.kateboo.cloud.community.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_email", columnNames = "email"),
+        @UniqueConstraint(name = "uk_nickname", columnNames = "nickname")
+})
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,16 +26,16 @@ public class User {
 
     @Id
     @UuidGenerator(style = UuidGenerator.Style.RANDOM)
-    @Column(name = "user_id", columnDefinition = "BINARY(16)")
+    @Column(name = "user_id", updatable = false, nullable = false ,columnDefinition = "BINARY(16)")
     private UUID userId;
 
     @Column(name = "email", nullable = false, unique = true, length = 254)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(name = "password_hash", nullable = false, length = 100)
     private String passwordHash;
 
-    @Column(name = "nickname", nullable = false, length = 10)
+    @Column(name = "nickname", nullable = false, unique = true, length = 10)
     private String nickname;
 
     @Column(name = "profile_image_url", length = 500)
@@ -46,19 +52,8 @@ public class User {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
 
 }

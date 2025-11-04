@@ -6,6 +6,7 @@ import com.kateboo.cloud.community.dto.response.AuthResponse;
 import com.kateboo.cloud.community.entity.RefreshToken;
 import com.kateboo.cloud.community.entity.User;
 import com.kateboo.cloud.community.exception.BadRequestException;
+import com.kateboo.cloud.community.exception.ConflictException;
 import com.kateboo.cloud.community.exception.NotFoundException;
 import com.kateboo.cloud.community.repository.RefreshTokenRepository;
 import com.kateboo.cloud.community.repository.UserRepository;
@@ -15,15 +16,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
-@Slf4j
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -31,32 +32,59 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
+    // 정규식 패턴
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+    private static final Pattern PASSWORD_PATTERN = Pattern.compile(
+            "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*(),.?\":{}|<>]).{8,20}$"
+    );
+    private static final Pattern NICKNAME_WHITESPACE_PATTERN = Pattern.compile("\\s");
+
     @Value("${jwt.refresh-token.expiration}")
     private long refreshTokenExpiration;
 
     private static final int DEACTIVATION_GRACE_PERIOD_DAYS = 7;
 
-    @Transactional
+    /**
+     * 회원가입 - 완벽한 검증 로직
+     */
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public AuthResponse signup(SignupRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new BadRequestException("이미 사용 중인 이메일입니다");
-        }
+        log.info("회원가입 시도 - 이메일: {}, 닉네임: {}", request.getEmail(), request.getNickname());
 
-        if (userRepository.existsByNickname(request.getNickname())) {
-            throw new BadRequestException("이미 사용 중인 닉네임입니다");
-        }
+        // ========================================
+        // 1. 프로필 사진 검증
+        // ========================================
+        validateProfileImage(request.getProfileImageUrl());
 
+        // ========================================
+        // 2. 이메일 검증
+        // ========================================
+        validateEmail(request.getEmail());
+
+        // ========================================
+        // 3. 비밀번호 검증
+        // ========================================
+        validatePassword(request.getPassword());
+
+        // ========================================
+        // 4. 닉네임 검증
+        // ========================================
+        validateNickname(request.getNickname());
+
+        // ========================================
+        // 5. User 생성 및 저장
+        // ========================================
         User user = User.builder()
-                .email(request.getEmail())
+                .email(request.getEmail().trim())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .nickname(request.getNickname())
-                .profileImageUrl(request.getProfileImageUrl())
+                .nickname(request.getNickname().trim())
+                .profileImageUrl(request.getProfileImageUrl().trim())
                 .isActive(true)
                 .build();
 
         User savedUser = userRepository.save(user);
+        log.info("회원가입 성공 - userId: {}, 이메일: {}", savedUser.getUserId(), savedUser.getEmail());
 
-        // 회원가입 시에는 토큰 발급 안 함 (로그인 필요)
         return AuthResponse.builder()
                 .userId(savedUser.getUserId())
                 .email(savedUser.getEmail())
@@ -64,6 +92,97 @@ public class AuthService {
                 .profileImageUrl(savedUser.getProfileImageUrl())
                 .accountRestored(false)
                 .build();
+    }
+
+    /**
+     * 프로필 이미지 검증
+     */
+    private void validateProfileImage(String profileImageUrl) {
+        // 필수 입력
+        if (profileImageUrl == null || profileImageUrl.trim().isEmpty()) {
+            throw new BadRequestException("프로필 사진을 추가해주세요");
+        }
+
+        // 길이 검증
+        if (profileImageUrl.length() > 500) {
+            throw new BadRequestException("프로필 이미지 URL은 500자 이하여야 합니다");
+        }
+    }
+
+    /**
+     * 이메일 검증
+     */
+    private void validateEmail(String email) {
+        // 필수 입력
+        if (email == null || email.trim().isEmpty()) {
+            throw new BadRequestException("이메일을 입력해주세요");
+        }
+
+        String trimmedEmail = email.trim();
+
+        // 형식 검증
+        if (!EMAIL_PATTERN.matcher(trimmedEmail).matches()) {
+            throw new BadRequestException("올바른 이메일 주소 형식을 입력해주세요");
+        }
+
+        // 길이 검증
+        if (trimmedEmail.length() > 254) {
+            throw new BadRequestException("이메일은 254자 이하여야 합니다");
+        }
+
+        // 중복 검사
+        if (userRepository.existsByEmail(trimmedEmail)) {
+            log.warn("이메일 중복 감지: {}", trimmedEmail);
+            throw new ConflictException("중복된 이메일입니다");
+        }
+    }
+
+    /**
+     * 비밀번호 검증
+     */
+    private void validatePassword(String password) {
+        // 필수 입력
+        if (password == null || password.isEmpty()) {
+            throw new BadRequestException("비밀번호를 입력해주세요");
+        }
+
+        // 길이 검증
+        if (password.length() < 8 || password.length() > 20) {
+            throw new BadRequestException("비밀번호는 8자 이상, 20자 이하이며, 대문자, 소문자, 숫자, 특수문자를 각각 최소 1개 포함해야합니다");
+        }
+
+        // 복잡도 검증 (대문자, 소문자, 숫자, 특수문자 각 1개 이상)
+        if (!PASSWORD_PATTERN.matcher(password).matches()) {
+            throw new BadRequestException("비밀번호는 8자 이상, 20자 이하이며, 대문자, 소문자, 숫자, 특수문자를 각각 최소 1개 포함해야합니다");
+        }
+    }
+
+    /**
+     * 닉네임 검증
+     */
+    private void validateNickname(String nickname) {
+        // 필수 입력
+        if (nickname == null || nickname.trim().isEmpty()) {
+            throw new BadRequestException("닉네임을 입력해주세요");
+        }
+
+        String trimmedNickname = nickname.trim();
+
+        // 띄어쓰기 검증
+        if (NICKNAME_WHITESPACE_PATTERN.matcher(trimmedNickname).find()) {
+            throw new BadRequestException("띄어쓰기를 없애주세요");
+        }
+
+        // 길이 검증
+        if (trimmedNickname.length() > 10) {
+            throw new BadRequestException("닉네임은 최대 10자까지 작성 가능합니다");
+        }
+
+        // 중복 검사
+        if (userRepository.existsByNickname(trimmedNickname)) {
+            log.warn("닉네임 중복 감지: {}", trimmedNickname);
+            throw new ConflictException("중복된 닉네임입니다");
+        }
     }
 
     @Transactional

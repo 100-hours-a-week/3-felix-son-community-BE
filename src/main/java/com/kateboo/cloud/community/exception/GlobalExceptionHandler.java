@@ -2,7 +2,9 @@ package com.kateboo.cloud.community.exception;
 
 import com.kateboo.cloud.community.dto.response.ErrorResponse;
 import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cglib.core.Local;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -12,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     // 400 BadReqeust
@@ -56,6 +59,38 @@ public class GlobalExceptionHandler {
                 LocalDateTime.now());
 
         return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex){
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                LocalDateTime.now());
+
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex){
+        log.error("Data integrity violation: {}", ex.getMessage());
+
+        String message = "중복된 데이터가 있습니다";
+
+        if(ex.getMessage().contains("email") || ex.getMessage().contains("uk_email")){
+            message = "중복된 이메일입니다";
+        }
+        else if(ex.getMessage().contains("nickname") || ex.getMessage().contains("uk_nickname")){
+            message = "중복된 닉네임입니다";
+        }
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                message,
+                LocalDateTime.now());
+
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
     // 모든 예외의 fallback 처리
