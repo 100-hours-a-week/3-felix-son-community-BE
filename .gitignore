@@ -1,10 +1,47 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+out/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Application properties (민감 정보)
+application-*.yml
+application-*.properties
+!application.yml.example
+!application.properties.example
+
+# 환경 변수
+.env
+.env.local
+
+# Logs
+logs/
+*.log
+
+# Test coverage
+.coverage
+*.coveragerc
+
 # Compiled class files
 *.class
 
-# Log files
-*.log
-
-# Package Files
+# Package files
 *.jar
 *.war
 *.nar
@@ -13,31 +50,5 @@
 *.tar.gz
 *.rar
 
-# Gradle
-.gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-# IDE
-.idea/
-*.iws
-*.iml
-*.ipr
-.vscode/
-*.swp
-*.swo
-*~
-
-# Spring Boot
-HELP.md
-.DS_Store
-
-# Environment variables
-.env
-.env.local
-.env.*.local
-
-# application.yml
-/src/main/resources/application.yml
+# Virtual machine crash logs
+hs_err_pid*
