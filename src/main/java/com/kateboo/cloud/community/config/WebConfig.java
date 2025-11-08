@@ -36,7 +36,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("*") // 프론트엔드 주소 추가
+                .allowedOriginPatterns("*") // 프론트엔드 주소 추가
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true) // ✅ 쿠키 전송 허용
