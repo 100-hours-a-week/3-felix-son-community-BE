@@ -96,6 +96,9 @@ public class GlobalExceptionHandler {
     // 모든 예외의 fallback 처리
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleInternalServer(Exception ex) {
+        // ✅ 실제 에러를 로그에 출력!
+        log.error("Unexpected error occurred: ", ex);
+
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "서버 내부 오류가 발생했습니다",
