@@ -85,13 +85,7 @@ public class AuthService {
         User savedUser = userRepository.save(user);
         log.info("회원가입 성공 - userId: {}, 이메일: {}", savedUser.getUserId(), savedUser.getEmail());
 
-        return AuthResponse.builder()
-                .userId(savedUser.getUserId())
-                .email(savedUser.getEmail())
-                .nickname(savedUser.getNickname())
-                .profileImageUrl(savedUser.getProfileImageUrl())
-                .accountRestored(false)
-                .build();
+        return generateAuthResponse(savedUser, false);
     }
 
     /**

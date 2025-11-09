@@ -27,9 +27,20 @@ public class AuthController {
      * 회원가입
      */
     @PostMapping("/signup")
-    public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
-        AuthResponse response = authService.signup(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request, HttpServletResponse response) {
+        AuthResponse authResponse = authService.signup(request);
+
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", authResponse.getRefreshToken())
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .maxAge(7 * 24 * 60 *60)
+                .sameSite("Lax")
+                .build();
+
+        response.addHeader("Set-Cookie", refreshCookie.toString());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
     }
 
     /**
