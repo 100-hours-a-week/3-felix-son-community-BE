@@ -65,7 +65,7 @@ public class ImageController {
             Files.copy(image.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
             // URL 생성
-            String imageUrl = baseUrl + "/uploads/images/" + filename;
+            String imageUrl = "/uploads/images/" + filename;
             urls.add(imageUrl);
 
             log.info("이미지 업로드 완료: {} -> {}", originalFilename, imageUrl);
