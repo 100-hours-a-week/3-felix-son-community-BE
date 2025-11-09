@@ -50,7 +50,7 @@ public class AuthController {
                 .secure(false)               // 개발: false, 프로덕션: true (HTTPS)
                 .path("/")                   // 모든 경로에서 전송
                 .maxAge(7 * 24 * 60 * 60)    // 7일
-                .sameSite("Strict")          // CSRF 방어
+                .sameSite("Lax")          // CSRF 방어
                 .build();
 
         response.addHeader("Set-Cookie", refreshCookie.toString());
