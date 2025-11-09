@@ -26,8 +26,8 @@ public class ImageController {
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    @Value("${file.base-url}")
-    private String baseUrl;
+//    @Value("${file.base-url}")
+//    private String baseUrl;
 
     /**
      * 이미지 업로드
