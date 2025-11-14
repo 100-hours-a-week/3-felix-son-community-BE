@@ -2,13 +2,11 @@ package com.kateboo.cloud.community.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.UUID;
 
@@ -16,14 +14,16 @@ import java.util.UUID;
 @Slf4j
 public class RefreshTokenProvider {
 
-    private final SecretKey secretKey;
+    private final String secretKey;
     private final long refreshTokenExpiration;
 
     public RefreshTokenProvider(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.refresh-token.expiration}") long refreshTokenExpiration) {
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.secretKey = secret;
         this.refreshTokenExpiration = refreshTokenExpiration;
+
+        log.info("Refresh TokenProvider 초기화 완료 (JJWT 0.11.2)");
     }
 
     /**
@@ -34,10 +34,10 @@ public class RefreshTokenProvider {
         Date expiryDate = new Date(now.getTime() + refreshTokenExpiration);
 
         return Jwts.builder()
-                .subject(userId.toString())
-                .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(secretKey)
+                .setSubject(userId.toString())
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(SignatureAlgorithm.HS256, secretKey)
                 .compact();
     }
 
@@ -45,12 +45,7 @@ public class RefreshTokenProvider {
      * Refresh Token에서 사용자 ID 추출
      */
     public UUID getUserIdFromRefreshToken(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-
+        Claims claims = parseClaims(token);
         return UUID.fromString(claims.getSubject());
     }
 
@@ -59,15 +54,22 @@ public class RefreshTokenProvider {
      */
     public boolean validateRefreshToken(String token) {
         try {
-            Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token);
+            parseClaims(token);
             return true;
         } catch (Exception e) {
             log.error("Refresh Token 검증 실패: {}", e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * 토큰에서 Claims 추출
+     */
+    private Claims parseClaims(String token) {
+        return Jwts.parser()
+                .setSigningKey(secretKey)
+                .parseClaimsJws(token)
+                .getBody();
     }
 
     /**
