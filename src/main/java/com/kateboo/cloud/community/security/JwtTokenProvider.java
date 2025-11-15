@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.Base64;
 import java.util.Date;
 import java.util.UUID;
 
@@ -14,21 +15,20 @@ import java.util.UUID;
 @Slf4j
 public class JwtTokenProvider {
 
-    private final String secretKey;
+    private final byte[] secretKeyBytes;
     private final long accessTokenExpiration;
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-token.expiration}") long accessTokenExpiration) {
-        this.secretKey = secret;
+        // ✅ Base64 디코딩
+        this.secretKeyBytes = Base64.getDecoder().decode(secret);
         this.accessTokenExpiration = accessTokenExpiration;
 
-        log.info("JWT TokenProvider 초기화 완료 (JJWT 0.11.2)");
+        log.info("JWT TokenProvider 초기화 완료 (JJWT 0.11.2 + Base64)");
+        log.info("Secret 길이: {} (Base64), 디코딩 후: {} bytes", secret.length(), secretKeyBytes.length);
     }
 
-    /**
-     * JWT 토큰 생성
-     */
     public String generateToken(UUID userId, String email) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + accessTokenExpiration);
@@ -38,21 +38,15 @@ public class JwtTokenProvider {
                 .claim("email", email)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .signWith(SignatureAlgorithm.HS256, secretKey)
+                .signWith(SignatureAlgorithm.HS256, secretKeyBytes)  // ✅ byte[] 사용
                 .compact();
     }
 
-    /**
-     * 토큰에서 사용자 ID 추출
-     */
     public UUID getUserIdFromToken(String token) {
         Claims claims = parseClaims(token);
         return UUID.fromString(claims.getSubject());
     }
 
-    /**
-     * 토큰 유효성 검증
-     */
     public boolean validateToken(String token) {
         try {
             parseClaims(token);
@@ -63,19 +57,13 @@ public class JwtTokenProvider {
         }
     }
 
-    /**
-     * 토큰에서 Claims 추출
-     */
     private Claims parseClaims(String token) {
         return Jwts.parser()
-                .setSigningKey(secretKey)
+                .setSigningKey(secretKeyBytes)  // ✅ byte[] 사용
                 .parseClaimsJws(token)
                 .getBody();
     }
 
-    /**
-     * AccessToken 만료 시간 반환 (초 단위)
-     */
     public long getAccessTokenExpirationInSeconds() {
         return accessTokenExpiration / 1000;
     }
