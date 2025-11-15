@@ -37,7 +37,7 @@ upload:
   dir: uploads/images/
 
 jwt:
-  secret: JWT_SECRET=jJL3Qj7Woc6nbKRio88jiCf1sJe2O4E0UPDlgoThtuhKw6+zOdQVZCzfH69HGemxred88CuldHxjff8Kj0Btmw==
+  secret: jJL3Qj7Woc6nbKRio88jiCf1sJe2O4E0UPDlgoThtuhKw6+zOdQVZCzfH69HGemxred88CuldHxjff8Kj0Btmw==
   access-token:
     expiration: 900000        # 15분 (밀리초)
   refresh-token:
