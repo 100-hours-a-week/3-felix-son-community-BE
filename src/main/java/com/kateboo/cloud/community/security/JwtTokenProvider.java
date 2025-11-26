@@ -21,7 +21,6 @@ public class JwtTokenProvider {
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-token.expiration}") long accessTokenExpiration) {
-        // ✅ Base64 디코딩
         this.secretKeyBytes = Base64.getDecoder().decode(secret);
         this.accessTokenExpiration = accessTokenExpiration;
 
@@ -38,7 +37,7 @@ public class JwtTokenProvider {
                 .claim("email", email)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .signWith(SignatureAlgorithm.HS256, secretKeyBytes)  // ✅ byte[] 사용
+                .signWith(SignatureAlgorithm.HS256, secretKeyBytes)
                 .compact();
     }
 
@@ -59,7 +58,7 @@ public class JwtTokenProvider {
 
     private Claims parseClaims(String token) {
         return Jwts.parser()
-                .setSigningKey(secretKeyBytes)  // ✅ byte[] 사용
+                .setSigningKey(secretKeyBytes)
                 .parseClaimsJws(token)
                 .getBody();
     }

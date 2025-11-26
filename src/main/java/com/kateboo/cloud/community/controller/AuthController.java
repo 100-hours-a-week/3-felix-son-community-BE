@@ -23,9 +23,6 @@ public class AuthController {
 
     private final AuthService authService;
 
-    /**
-     * 회원가입
-     */
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request, HttpServletResponse response) {
         AuthResponse authResponse = authService.signup(request);
@@ -43,9 +40,6 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
     }
 
-    /**
-     * 로그인
-     */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
             @RequestBody @Valid LoginRequest request,
@@ -55,7 +49,6 @@ public class AuthController {
 
         AuthResponse loginResponse = authService.login(request);
 
-        // ✅ Refresh Token을 HttpOnly 쿠키에 저장 (ResponseCookie 사용)
         ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", loginResponse.getRefreshToken())
                 .httpOnly(true)              // JavaScript 접근 불가
                 .secure(false)               // 개발: false, 프로덕션: true (HTTPS)
@@ -66,7 +59,6 @@ public class AuthController {
 
         response.addHeader("Set-Cookie", refreshCookie.toString());
 
-        // ✅ 응답 바디에서 refreshToken 제거 (보안)
         loginResponse.setRefreshToken(null);
 
         log.info("로그인 성공: userId={}", loginResponse.getUserId());
@@ -74,9 +66,6 @@ public class AuthController {
         return ResponseEntity.ok(loginResponse);
     }
 
-    /**
-     * Access Token 갱신
-     */
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponse> refresh(
             @CookieValue(name = "refreshToken", required = false) String refreshToken,
@@ -89,10 +78,8 @@ public class AuthController {
             throw new UnauthorizedException("Refresh token not found");
         }
 
-        // ✅ AuthResponse를 받아서 TokenResponse로 변환
         AuthResponse authResponse = authService.refresh(refreshToken);
 
-        // ✅ 새로운 Refresh Token을 쿠키에 설정 (Refresh Token Rotation)
         ResponseCookie newRefreshCookie = ResponseCookie.from("refreshToken", authResponse.getRefreshToken())
                 .httpOnly(true)
                 .secure(false)  // 개발: false, 프로덕션: true
@@ -103,7 +90,6 @@ public class AuthController {
 
         response.addHeader("Set-Cookie", newRefreshCookie.toString());
 
-        // ✅ Access Token만 반환
         TokenResponse tokenResponse = new TokenResponse(authResponse.getAccessToken());
 
         log.info("토큰 갱신 성공");
@@ -111,9 +97,6 @@ public class AuthController {
         return ResponseEntity.ok(tokenResponse);
     }
 
-    /**
-     * 로그아웃
-     */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
             @CookieValue(name = "refreshToken", required = false) String refreshToken,
@@ -121,17 +104,15 @@ public class AuthController {
 
         log.info("로그아웃 요청");
 
-        // ✅ Refresh Token이 있으면 DB에서 무효화
         if (refreshToken != null && !refreshToken.isEmpty()) {
             authService.logout(refreshToken);
         }
 
-        // ✅ Refresh Token 쿠키 삭제 (ResponseCookie 사용)
         ResponseCookie deleteCookie = ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
-                .secure(false)  // 개발: false, 프로덕션: true
+                .secure(false)
                 .path("/")
-                .maxAge(0)      // 즉시 삭제
+                .maxAge(0)
                 .sameSite("Strict")
                 .build();
 

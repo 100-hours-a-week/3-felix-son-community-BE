@@ -24,9 +24,6 @@ public class PostController {
 
     private final PostService postService;
 
-    /**
-     * 게시글 목록 조회
-     */
     @GetMapping
     public ResponseEntity<PageResponse<PostResponse>> getPosts(
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
@@ -34,18 +31,12 @@ public class PostController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * 게시글 상세 조회
-     */
     @GetMapping("/{postId}")
     public ResponseEntity<PostResponse> getPost(@PathVariable UUID postId) {
         PostResponse response = postService.getPost(postId);
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * 게시글 작성
-     */
     @PostMapping
     public ResponseEntity<PostResponse> createPost(
             @CurrentUser UUID userId,  // 변경!
@@ -54,9 +45,6 @@ public class PostController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /**
-     * 게시글 수정
-     */
     @PutMapping("/{postId}")
     public ResponseEntity<PostResponse> updatePost(
             @CurrentUser UUID userId,  // 변경!
@@ -66,9 +54,6 @@ public class PostController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * 게시글 삭제
-     */
     @DeleteMapping("/{postId}")
     public ResponseEntity<Void> deletePost(
             @CurrentUser UUID userId,  // 변경!
@@ -77,9 +62,6 @@ public class PostController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * 게시글 좋아요 토글
-     */
     @PostMapping("/{postId}/like")
     public ResponseEntity<LikeResponse> toggleLike(
             @CurrentUser UUID userId,  // 변경!

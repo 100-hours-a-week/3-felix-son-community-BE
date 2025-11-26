@@ -11,7 +11,7 @@ import java.util.UUID;
 @Builder
 public class AuthResponse {
     private String accessToken;
-    private String refreshToken; // 백엔드 내부용, 쿠키 설정 후 null로 변경
+    private String refreshToken;
     private UUID userId;
     private String email;
     private String nickname;

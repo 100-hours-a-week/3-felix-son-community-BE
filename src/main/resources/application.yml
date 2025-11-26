@@ -1,9 +1,16 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/Community?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: root
-    password: "00000000"
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:Community}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:00000000}
     driver-class-name: com.mysql.cj.jdbc.Driver
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 10
+        queue-capacity: 100
+      thread-name-prefix: async-
 
   thymeleaf:
     cache: false
@@ -26,22 +33,21 @@ spring:
 
 server:
   port: 8080
-  url: http://localhost:8080
+  url: ${SERVER_URL:http://localhost:8080}
 
 file:
-  upload-dir: ${user.home}/uploads/images
-  base-url: http://localhost:8080
-
+  upload-dir: ${FILE_UPLOAD_DIR:${user.home}/uploads/images}
+  base-url: ${FILE_BASE_URL:http://localhost:8080}
 
 upload:
   dir: uploads/images/
 
 jwt:
-  secret: jJL3Qj7Woc6nbKRio88jiCf1sJe2O4E0UPDlgoThtuhKw6+zOdQVZCzfH69HGemxred88CuldHxjff8Kj0Btmw==
+  secret: ${JWT_SECRET:jJL3Qj7Woc6nbKRio88jiCf1sJe2O4E0UPDlgoThtuhKw6+zOdQVZCzfH69HGemxred88CuldHxjff8Kj0Btmw==}
   access-token:
-    expiration: 900000        # 15분 (밀리초)
+    expiration: 900000
   refresh-token:
-    expiration: 604800000     # 7일 (밀리초)
+    expiration: 604800000
 
 logging:
   level:

@@ -15,16 +15,9 @@ import java.util.UUID;
 @Repository
 public interface PostRepository extends JpaRepository<Post, UUID> {
 
-    /**
-     * 게시글 목록 조회
-     */
     @EntityGraph(attributePaths = {"user", "postStats", "postImages"})
     Page<Post> findAll(Pageable pageable);
 
-    /**
-     * 게시글 상세 조회
-     */
     @EntityGraph(attributePaths = {"user", "postStats", "postImages"})
     Optional<Post> findById(UUID postId);
-
 }

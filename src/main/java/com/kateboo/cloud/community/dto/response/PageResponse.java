@@ -15,17 +15,14 @@ import java.util.function.Function;
 @AllArgsConstructor
 public class PageResponse<T> {
 
-    private List<T> content;          // 데이터 목록
-    private int pageNumber;            // 현재 페이지 (0부터 시작)
-    private int pageSize;              // 페이지 크기
-    private long totalElements;        // 전체 데이터 수
-    private int totalPages;            // 전체 페이지 수
-    private boolean first;             // 첫 페이지 여부
-    private boolean last;              // 마지막 페이지 여부
+    private List<T> content;
+    private int pageNumber;
+    private int pageSize;
+    private long totalElements;
+    private int totalPages;
+    private boolean first;
+    private boolean last;
 
-    /**
-     * Page 객체를 PageResponse로 변환
-     */
     public static <T> PageResponse<T> of(Page<T> page) {
         return PageResponse.<T>builder()
                 .content(page.getContent())
@@ -38,9 +35,6 @@ public class PageResponse<T> {
                 .build();
     }
 
-    /**
-     * Page 객체를 변환 함수를 사용하여 PageResponse로 변환
-     */
     public static <T, R> PageResponse<R> of(Page<T> page, Function<T, R> converter) {
         return PageResponse.<R>builder()
                 .content(page.getContent().stream()

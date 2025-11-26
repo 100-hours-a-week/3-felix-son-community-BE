@@ -1,0 +1,61 @@
+# Build outputs
+target/
+build/
+out/
+bin/
+*.jar
+*.war
+*.ear
+
+# IDE 설정 파일
+.idea/
+.vscode/
+.settings/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+
+# Gradle 관련
+.gradle/
+gradle/wrapper/gradle-wrapper.jar
+
+# Git 관련
+.git/
+.gitignore
+.gitattributes
+
+# 로그 및 임시 파일
+*.log
+*.tmp
+*.swp
+*.bak
+*~
+
+# 환경 변수 파일
+.env
+.env.*
+*.properties.local
+
+# 테스트 결과
+test-results/
+coverage/
+*.class
+
+# 문서
+README.md
+docs/
+*.md
+
+# OS 생성 파일
+.DS_Store
+Thumbs.db
+
+# Docker 관련
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 기타
+node_modules/

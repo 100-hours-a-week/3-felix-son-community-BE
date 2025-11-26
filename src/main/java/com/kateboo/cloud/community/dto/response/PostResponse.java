@@ -61,7 +61,6 @@ public class PostResponse {
                 .stats(statsResponse)
                 .build();
 
-        // 포맷 변환 메서드 호출해서 문자열 필드 세팅
         response.formattedViewsCount = formatCount(post.getPostStats().getViewsCount());
         response.formattedCommentsCount = formatCount(post.getPostStats().getCommentCount());
         response.formattedLikesCount = formatCount(post.getPostStats().getLikesCount());

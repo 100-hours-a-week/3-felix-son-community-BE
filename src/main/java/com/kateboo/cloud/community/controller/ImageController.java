@@ -26,17 +26,10 @@ public class ImageController {
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-//    @Value("${file.base-url}")
-//    private String baseUrl;
-
-    /**
-     * 이미지 업로드
-     */
     @PostMapping
     public ResponseEntity<ImageUploadResponse> uploadImages(
             @RequestParam("images") List<MultipartFile> images) throws IOException {
 
-        // 업로드 디렉토리 생성
         Path uploadPath = Paths.get(uploadDir);
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
@@ -50,21 +43,17 @@ public class ImageController {
                 continue;
             }
 
-            // 원본 파일명
             String originalFilename = image.getOriginalFilename();
 
-            // 고유한 파일명 생성
             String extension = "";
             if (originalFilename != null && originalFilename.contains(".")) {
                 extension = originalFilename.substring(originalFilename.lastIndexOf("."));
             }
             String filename = UUID.randomUUID().toString() + extension;
 
-            // 파일 저장
             Path filePath = uploadPath.resolve(filename);
             Files.copy(image.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
-            // URL 생성
             String imageUrl = "/uploads/images/" + filename;
             urls.add(imageUrl);
 

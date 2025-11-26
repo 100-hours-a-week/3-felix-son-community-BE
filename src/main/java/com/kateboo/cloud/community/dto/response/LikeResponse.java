@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class LikeResponse {
 
-    private boolean isLiked;      // 현재 좋아요 상태
-    private int likesCount;       // 총 좋아요 개수
+    private boolean isLiked;
+    private int likesCount;
 }

@@ -23,7 +23,7 @@ public class RefreshToken {
     private Long refreshId;
 
     @Column(name = "token_hash", nullable = false, unique = true, length = 255)
-    private String token;  // 필드명 변경
+    private String token;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

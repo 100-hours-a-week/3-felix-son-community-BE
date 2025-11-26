@@ -16,14 +16,7 @@ import java.util.UUID;
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 
-    /**
-     * 토큰 값으로 RefreshToken 조회
-     */
     Optional<RefreshToken> findByToken(String token);
 
-    /**
-     * 사용자 ID로 모든 RefreshToken 삭제
-     */
     void deleteByUser_UserId(UUID userId);
-
 }

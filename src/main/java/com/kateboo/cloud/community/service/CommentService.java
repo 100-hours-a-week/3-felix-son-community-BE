@@ -31,17 +31,11 @@ public class CommentService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
 
-    /**
-     * 댓글 목록 조회
-     */
     public PageResponse<CommentResponse> getComments(UUID postId, Pageable pageable) {
         Page<Comment> comments = commentRepository.findByPost_PostId(postId, pageable);
         return PageResponse.of(comments, CommentResponse::from);
     }
 
-    /**
-     * 댓글 작성
-     */
     @Transactional
     public CommentResponse createComment(UUID userId, UUID postId, CommentRequest request) {
         Post post = postRepository.findById(postId)
@@ -58,7 +52,6 @@ public class CommentService {
 
         Comment savedComment = commentRepository.save(comment);
 
-        // 댓글 수 증가
         post.getPostStats().incrementCommentCount();
 
         log.info("댓글 작성 완료: commentId={}, postId={}, userId={}",
@@ -67,9 +60,6 @@ public class CommentService {
         return CommentResponse.from(savedComment);
     }
 
-    /**
-     * 댓글 수정
-     */
     @Transactional
     public CommentResponse updateComment(UUID userId, UUID commentId, CommentRequest request) {
         Comment comment = commentRepository.findById(commentId)
@@ -87,9 +77,6 @@ public class CommentService {
         return CommentResponse.from(comment);
     }
 
-    /**
-     * 댓글 삭제
-     */
     @Transactional
     public void deleteComment(UUID userId, UUID commentId) {
         Comment comment = commentRepository.findById(commentId)
@@ -102,7 +89,6 @@ public class CommentService {
         Post post = comment.getPost();
         commentRepository.delete(comment);
 
-        // 댓글 수 감소
         post.getPostStats().decrementCommentCount();
 
         log.info("댓글 삭제 완료: commentId={}, postId={}, userId={}",

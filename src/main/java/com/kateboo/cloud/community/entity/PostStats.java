@@ -40,9 +40,6 @@ public class PostStats {
     @JoinColumn(name = "post_id")
     private Post post;
 
-    public void incrementViewsCount() {
-        this.viewsCount++;
-    }
 
     public void incrementCommentCount() {
         this.commentCount++;

@@ -33,12 +33,10 @@ public class Comment {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    // User 삭제 시 comment.user_id는 NULL로 설정 (ON DELETE SET NULL)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", columnDefinition = "BINARY(16)")
     private User user;
 
-    // Post 삭제 시 comment.post_id는 NULL로 설정 (ON DELETE SET NULL)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", columnDefinition = "BINARY(16)")
     private Post post;

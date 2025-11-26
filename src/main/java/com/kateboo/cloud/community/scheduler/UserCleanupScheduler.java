@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * ✅ 비활성 계정 자동 정리 스케줄러
+ * 비활성 계정 자동 정리 스케줄러
  * 7일이 지난 탈퇴 계정을 자동으로 영구 삭제
  */
 @Component
@@ -42,17 +42,4 @@ public class UserCleanupScheduler {
         log.info("========================================");
     }
 
-    /**
-     * 🔧 테스트용: 10분마다 실행
-     * 프로덕션에서는 주석 처리하고 위의 매일 실행만 사용
-     */
-    // @Scheduled(cron = "0 */10 * * * *")
-    // public void cleanupExpiredAccountsTest() {
-    //     log.info("[테스트] 비활성 계정 정리 실행");
-    //     try {
-    //         userService.deleteExpiredAccounts();
-    //     } catch (Exception e) {
-    //         log.error("[테스트] 비활성 계정 정리 중 오류", e);
-    //     }
-    // }
 }

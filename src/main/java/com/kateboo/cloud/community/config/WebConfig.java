@@ -30,24 +30,21 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
-        resolvers.add(currentUserArgumentResolver); // ✅ 추가
+        resolvers.add(currentUserArgumentResolver);
     }
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOriginPatterns("*") // 프론트엔드 주소 추가
+                .allowedOriginPatterns("*")
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
-                .allowCredentials(true) // ✅ 쿠키 전송 허용
+                .allowCredentials(true)
                 .exposedHeaders("Authorization");
     }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 업로드된 파일을 정적 리소스로 제공
-        // URL: /uploads/images/abc123.jpg
-        // 실제 파일: uploads/images/abc123.jpg
         registry.addResourceHandler("/uploads/images/**")
                 .addResourceLocations("file:" + uploadDir + "/");
 

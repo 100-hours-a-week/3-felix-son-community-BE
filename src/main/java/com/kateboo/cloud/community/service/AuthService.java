@@ -32,7 +32,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
-    // 정규식 패턴
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
     private static final Pattern PASSWORD_PATTERN = Pattern.compile(
             "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*(),.?\":{}|<>]).{8,20}$"
@@ -44,36 +43,18 @@ public class AuthService {
 
     private static final int DEACTIVATION_GRACE_PERIOD_DAYS = 7;
 
-    /**
-     * 회원가입 - 완벽한 검증 로직
-     */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public AuthResponse signup(SignupRequest request) {
         log.info("회원가입 시도 - 이메일: {}, 닉네임: {}", request.getEmail(), request.getNickname());
 
-        // ========================================
-        // 1. 프로필 사진 검증
-        // ========================================
         validateProfileImage(request.getProfileImageUrl());
 
-        // ========================================
-        // 2. 이메일 검증
-        // ========================================
         validateEmail(request.getEmail());
 
-        // ========================================
-        // 3. 비밀번호 검증
-        // ========================================
         validatePassword(request.getPassword());
 
-        // ========================================
-        // 4. 닉네임 검증
-        // ========================================
         validateNickname(request.getNickname());
 
-        // ========================================
-        // 5. User 생성 및 저장
-        // ========================================
         User user = User.builder()
                 .email(request.getEmail().trim())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
@@ -88,91 +69,70 @@ public class AuthService {
         return generateAuthResponse(savedUser, false);
     }
 
-    /**
-     * 프로필 이미지 검증
-     */
     private void validateProfileImage(String profileImageUrl) {
-        // 필수 입력
+
         if (profileImageUrl == null || profileImageUrl.trim().isEmpty()) {
             throw new BadRequestException("프로필 사진을 추가해주세요");
         }
 
-        // 길이 검증
         if (profileImageUrl.length() > 500) {
             throw new BadRequestException("프로필 이미지 URL은 500자 이하여야 합니다");
         }
     }
 
-    /**
-     * 이메일 검증
-     */
     private void validateEmail(String email) {
-        // 필수 입력
+
         if (email == null || email.trim().isEmpty()) {
             throw new BadRequestException("이메일을 입력해주세요");
         }
 
         String trimmedEmail = email.trim();
 
-        // 형식 검증
         if (!EMAIL_PATTERN.matcher(trimmedEmail).matches()) {
             throw new BadRequestException("올바른 이메일 주소 형식을 입력해주세요");
         }
 
-        // 길이 검증
         if (trimmedEmail.length() > 254) {
             throw new BadRequestException("이메일은 254자 이하여야 합니다");
         }
 
-        // 중복 검사
         if (userRepository.existsByEmail(trimmedEmail)) {
             log.warn("이메일 중복 감지: {}", trimmedEmail);
             throw new ConflictException("중복된 이메일입니다");
         }
     }
 
-    /**
-     * 비밀번호 검증
-     */
     private void validatePassword(String password) {
-        // 필수 입력
+
         if (password == null || password.isEmpty()) {
             throw new BadRequestException("비밀번호를 입력해주세요");
         }
 
-        // 길이 검증
         if (password.length() < 8 || password.length() > 20) {
             throw new BadRequestException("비밀번호는 8자 이상, 20자 이하이며, 대문자, 소문자, 숫자, 특수문자를 각각 최소 1개 포함해야합니다");
         }
 
-        // 복잡도 검증 (대문자, 소문자, 숫자, 특수문자 각 1개 이상)
         if (!PASSWORD_PATTERN.matcher(password).matches()) {
             throw new BadRequestException("비밀번호는 8자 이상, 20자 이하이며, 대문자, 소문자, 숫자, 특수문자를 각각 최소 1개 포함해야합니다");
         }
     }
 
-    /**
-     * 닉네임 검증
-     */
     private void validateNickname(String nickname) {
-        // 필수 입력
+
         if (nickname == null || nickname.trim().isEmpty()) {
             throw new BadRequestException("닉네임을 입력해주세요");
         }
 
         String trimmedNickname = nickname.trim();
 
-        // 띄어쓰기 검증
         if (NICKNAME_WHITESPACE_PATTERN.matcher(trimmedNickname).find()) {
             throw new BadRequestException("띄어쓰기를 없애주세요");
         }
 
-        // 길이 검증
         if (trimmedNickname.length() > 10) {
             throw new BadRequestException("닉네임은 최대 10자까지 작성 가능합니다");
         }
 
-        // 중복 검사
         if (userRepository.existsByNickname(trimmedNickname)) {
             log.warn("닉네임 중복 감지: {}", trimmedNickname);
             throw new ConflictException("중복된 닉네임입니다");
@@ -254,7 +214,6 @@ public class AuthService {
 
         User user = refreshToken.getUser();
 
-        // ✅ Refresh Token Rotation: 기존 토큰 삭제
         refreshTokenRepository.delete(refreshToken);
 
         log.info("토큰 갱신 성공: userId={}", user.getUserId());
@@ -281,17 +240,12 @@ public class AuthService {
         }
     }
 
-    /**
-     * AuthResponse 생성 (Access Token + Refresh Token)
-     */
     private AuthResponse generateAuthResponse(User user, boolean accountRestored) {
-        // 1. Access Token 생성
+
         String accessToken = jwtTokenProvider.generateToken(user.getUserId(), user.getEmail());
 
-        // 2. Refresh Token 생성 (UUID)
         String refreshTokenValue = UUID.randomUUID().toString();
 
-        // 3. Refresh Token DB 저장
         RefreshToken refreshToken = RefreshToken.builder()
                 .token(refreshTokenValue)
                 .user(user)
@@ -302,7 +256,6 @@ public class AuthService {
 
         log.info("토큰 발급: userId={}, accountRestored={}", user.getUserId(), accountRestored);
 
-        // 4. AuthResponse 반환
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshTokenValue)
@@ -314,9 +267,6 @@ public class AuthService {
                 .build();
     }
 
-    /**
-     * 사용자 조회 (토큰 갱신 시 사용)
-     */
     public User getUserById(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));

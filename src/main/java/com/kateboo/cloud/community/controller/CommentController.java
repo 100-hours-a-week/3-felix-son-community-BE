@@ -22,9 +22,6 @@ public class CommentController {
 
     private final CommentService commentService;
 
-    /**
-     * 댓글 목록 조회
-     */
     @GetMapping("/post/{postId}")
     public ResponseEntity<PageResponse<CommentResponse>> getComments(
             @PathVariable UUID postId,
@@ -33,9 +30,6 @@ public class CommentController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * 댓글 작성
-     */
     @PostMapping("/post/{postId}")
     public ResponseEntity<CommentResponse> createComment(
             @CurrentUser UUID userId,
@@ -45,9 +39,6 @@ public class CommentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /**
-     * 댓글 수정
-     */
     @PutMapping("/{commentId}")
     public ResponseEntity<CommentResponse> updateComment(
             @CurrentUser UUID userId,
@@ -57,9 +48,6 @@ public class CommentController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * 댓글 삭제
-     */
     @DeleteMapping("/{commentId}")
     public ResponseEntity<Void> deleteComment(
             @CurrentUser UUID userId,

@@ -15,7 +15,7 @@ public class CommentResponse {
 
     private UUID commentId;
     private String body;
-    private UserSummaryResponse user;  // ✅ 변경: UserResponse → UserSummaryResponse
+    private UserSummaryResponse user;
     private UUID postId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -24,7 +24,7 @@ public class CommentResponse {
         return CommentResponse.builder()
                 .commentId(comment.getCommentId())
                 .body(comment.getBody())
-                .user(comment.getUser() != null ? UserSummaryResponse.from(comment.getUser()) : null)  // ✅ 변경
+                .user(comment.getUser() != null ? UserSummaryResponse.from(comment.getUser()) : null)
                 .postId(comment.getPost() != null ? comment.getPost().getPostId() : null)
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())
