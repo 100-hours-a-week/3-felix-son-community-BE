@@ -1,6 +1,5 @@
 package com.kateboo.cloud.community.entity;
 
-import com.kateboo.cloud.community.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;

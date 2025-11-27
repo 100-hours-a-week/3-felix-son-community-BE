@@ -2,17 +2,18 @@ package com.kateboo.cloud.community.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UpdateTimestamp;
-
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "post_stats")
-@Getter @Setter
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EntityListeners(AuditingEntityListener.class)
 public class PostStats {
 
     @Id
@@ -31,7 +32,7 @@ public class PostStats {
     @Builder.Default
     private Integer commentCount = 0;
 
-    @UpdateTimestamp
+    @LastModifiedDate
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 

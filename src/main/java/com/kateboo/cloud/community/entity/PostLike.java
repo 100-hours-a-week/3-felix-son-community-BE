@@ -4,12 +4,10 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "post_likes",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"post_id", "user_id"}))
+@Table(name = "post_likes", uniqueConstraints = @UniqueConstraint(columnNames = {"post_id", "user_id"}))
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
