@@ -116,7 +116,7 @@ jobs:
           echo "🚀 Starting deployment..."
           echo "📦 Docker image: ${{ secrets.DOCKER_USERNAME }}/community-backend:latest"
           echo "🏷️  Commit SHA: ${{ github.sha }}"
-          
+
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
             --document-name "AWS-RunShellScript" \
@@ -132,11 +132,11 @@ jobs:
               "echo \"✅ Current directory: $(pwd)\"",
               "echo \"\"",
               "echo \"🐳 Pulling latest Docker image...\"",
-              "docker-compose pull backend",
+              "docker compose pull backend",
               "echo \"✅ Docker image pulled successfully\"",
               "echo \"\"",
               "echo \"♻️  Restarting backend service...\"",
-              "docker-compose up -d backend",
+              "docker compose up -d backend",
               "echo \"✅ Backend service restarted\"",
               "echo \"\"",
               "echo \"🧹 Cleaning up old Docker images...\"",
@@ -153,62 +153,6 @@ jobs:
             --timeout-seconds 300 \
             --output text \
             --query "Command.CommandId")
-          
-          echo "📝 Command ID: $COMMAND_ID"
-          echo "⏳ Waiting for deployment to complete (max 5 minutes)..."
-          echo ""
-          
-          # 명령 실행 완료 대기
-          for i in {1..30}; do
-            STATUS=$(aws ssm get-command-invocation \
-              --command-id $COMMAND_ID \
-              --instance-id ${{ secrets.EC2_INSTANCE_ID }} \
-              --query "Status" \
-              --output text 2>/dev/null || echo "Pending")
-          
-            echo "[$i/30] Status: $STATUS"
-          
-            if [ "$STATUS" = "Success" ]; then
-              echo ""
-              echo "✅ Deployment successful!"
-              echo ""
-              echo "==================== Deployment Output ===================="
-              aws ssm get-command-invocation \
-                --command-id $COMMAND_ID \
-                --instance-id ${{ secrets.EC2_INSTANCE_ID }} \
-                --query "StandardOutputContent" \
-                --output text
-              echo "==========================================================="
-              exit 0
-            elif [ "$STATUS" = "Failed" ]; then
-              echo ""
-              echo "❌ Deployment failed!"
-              echo ""
-              echo "===================== Error Output ======================="
-              aws ssm get-command-invocation \
-                --command-id $COMMAND_ID \
-                --instance-id ${{ secrets.EC2_INSTANCE_ID }} \
-                --query "StandardErrorContent" \
-                --output text
-              echo "=========================================================="
-              exit 1
-            elif [ "$STATUS" = "TimedOut" ]; then
-              echo ""
-              echo "⏱️ Deployment timed out!"
-              exit 1
-            elif [ "$STATUS" = "Cancelled" ]; then
-              echo ""
-              echo "🚫 Deployment was cancelled"
-              exit 1
-            fi
-          
-            sleep 10
-          done
-          
-          echo ""
-          echo "⏱️ Deployment timeout after 5 minutes!"
-          echo "Please check AWS Systems Manager → Run Command for details"
-          exit 1
 
       - name: Deployment notification
         if: always()
