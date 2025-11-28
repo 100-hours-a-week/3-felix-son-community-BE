@@ -8,6 +8,7 @@ import com.kateboo.cloud.community.security.CurrentUser;
 import com.kateboo.cloud.community.service.PostService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -26,8 +27,12 @@ public class PostController {
 
     @GetMapping
     public ResponseEntity<PageResponse<PostResponse>> getPosts(
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        PageResponse<PostResponse> response = postService.getPosts(pageable);
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size,
+            @RequestParam(defaultValue = "latest") String sort) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        PageResponse<PostResponse> response = postService.getPosts(pageable, sort);
         return ResponseEntity.ok(response);
     }
 

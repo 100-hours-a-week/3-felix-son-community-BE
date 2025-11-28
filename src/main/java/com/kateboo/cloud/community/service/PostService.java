@@ -36,9 +36,24 @@ public class PostService {
     private final UserRepository userRepository;
     private final PostLikeRepository postLikeRepository;
 
+
     @Transactional(readOnly = true)
-    public PageResponse<PostResponse> getPosts(Pageable pageable) {
-        Page<Post> posts = postRepository.findAll(pageable);
+    public PageResponse<PostResponse> getPosts(Pageable pageable, String sortType) {
+        Page<Post> posts;
+
+        switch (sortType) {
+            case "views":
+                posts = postRepository.findAllOrderByViewsCountDesc(pageable);
+                break;
+            case "likes":
+                posts = postRepository.findAllOrderByLikesCountDesc(pageable);
+                break;
+            case "latest":
+            default:
+                posts = postRepository.findAllOrderByCreatedAtDesc(pageable);
+                break;
+        }
+
         return PageResponse.of(posts, PostResponse::from);
     }
 

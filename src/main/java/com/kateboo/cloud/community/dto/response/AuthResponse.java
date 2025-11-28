@@ -16,5 +16,5 @@ public class AuthResponse {
     private String email;
     private String nickname;
     private String profileImageUrl;
-    private Boolean accountRestored;
+    private boolean accountRestored;
 }

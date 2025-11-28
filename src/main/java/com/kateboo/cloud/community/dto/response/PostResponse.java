@@ -1,8 +1,5 @@
 package com.kateboo.cloud.community.dto.response;
 
-import com.kateboo.cloud.community.dto.response.PostImageResponse;
-import com.kateboo.cloud.community.dto.response.PostStatsResponse;
-import com.kateboo.cloud.community.dto.response.UserSummaryResponse;
 import com.kateboo.cloud.community.entity.Post;
 import lombok.*;
 

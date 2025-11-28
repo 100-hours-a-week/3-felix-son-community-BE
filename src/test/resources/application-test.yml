@@ -1,38 +1,59 @@
-# src/test/resources/application-test.yml
-# Repository 테스트용 설정
-
 spring:
-  # H2 인메모리 데이터베이스 설정
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
-    # MODE=MySQL: MySQL 호환 모드 (일부 MySQL 문법 지원)
-    # DATABASE_TO_LOWER: 테이블명 소문자로 변환
-    # CASE_INSENSITIVE_IDENTIFIERS: 대소문자 구분 안 함
-    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DATABASE_TO_LOWER=TRUE
     username: sa
     password:
+    driver-class-name: org.h2.Driver
 
-  # JPA 설정
-  jpa:
-    hibernate:
-      ddl-auto: create-drop  # 테스트 시작 시 테이블 생성, 종료 시 삭제
-    properties:
-      hibernate:
-        # ✅ H2 Dialect로 변경 (MySQL Dialect 제거)
-        dialect: org.hibernate.dialect.H2Dialect
-        format_sql: true
-        show_sql: false  # 너무 많은 로그 방지
-    show-sql: false  # SQL 출력 끄기 (필요시 true)
-
-  # H2 콘솔 (디버깅용)
   h2:
     console:
       enabled: true
 
-# 로깅 설정
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        show_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+    # globally_quoted_identifiers 제거!
+
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 10
+        queue-capacity: 100
+      thread-name-prefix: async-test-
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+server:
+  port: 0
+
+file:
+  upload-dir: ${java.io.tmpdir}/test-uploads
+  base-url: http://localhost:8080
+
+upload:
+  dir: test-uploads/
+
+jwt:
+  secret: dGVzdC1zZWNyZXQta2V5LWZvci10ZXN0aW5nLW1pbmltdW0tMjU2LWJpdHMtcmVxdWlyZWQtMTIzNDU2Nzg5MGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=
+  access-token:
+    expiration: 3600000
+  refresh-token:
+    expiration: 604800000
+
 logging:
   level:
+    com.kateboo.cloud.community: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    com.kateboo.cloud.community: DEBUG
-    org.hibernate.tool.schema: ERROR  # ✅ DDL 경고 숨기기
+    org.springframework.test: INFO
