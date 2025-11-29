@@ -58,32 +58,72 @@ jobs:
     name: Build and Deploy
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          java-version: '21'
+          distribution: 'temurin'
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/community-backend:latest
-            ${{ secrets.DOCKER_USERNAME }}/community-backend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Build Docker image
+        run: |
+          echo "🏗️ Building Docker image..."
+          docker build -t backend:${{ github.sha }} .
+          docker save backend:${{ github.sha }} -o /tmp/backend-image.tar
+          echo "✅ Image built and saved"
+          echo "📊 Image size: $(du -h /tmp/backend-image.tar | cut -f1)"
+
+      - name: Setup SSH key
+        run: |
+          echo "🔑 Setting up SSH connection..."
+          mkdir -p ~/.ssh
+          echo "${{ secrets.NGINX_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.NGINX_PUBLIC_IP }} >> ~/.ssh/known_hosts
+          echo "✅ SSH key configured"
+
+      - name: Upload image to Private Registry
+        run: |
+          echo "📤 Uploading image to Private Registry (10.0.3.92:5000)..."
+          
+          # SCP로 이미지 파일 전송
+          echo "⏳ Transferring image file via SCP..."
+          scp -i ~/.ssh/id_rsa /tmp/backend-image.tar ubuntu@${{ secrets.NGINX_PUBLIC_IP }}:/tmp/backend-image.tar
+          echo "✅ Image file transferred"
+          
+          # SSH로 Registry에 로드 및 푸시
+          echo "🐳 Loading and pushing to Private Registry..."
+          ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.NGINX_PUBLIC_IP }} << 'ENDSSH'
+            set -e
+          
+            echo "📦 Loading Docker image..."
+            docker load < /tmp/backend-image.tar
+          
+            echo "🏷️  Tagging image for Private Registry..."
+            docker tag backend:${{ github.sha }} localhost:5000/backend:latest
+            docker tag backend:${{ github.sha }} localhost:5000/backend:${{ github.sha }}
+          
+            echo "⬆️  Pushing to Private Registry (localhost:5000)..."
+            docker push localhost:5000/backend:latest
+            docker push localhost:5000/backend:${{ github.sha }}
+          
+            echo "🧹 Cleaning up temporary files..."
+            rm -f /tmp/backend-image.tar
+            docker rmi backend:${{ github.sha }} || true
+          
+            echo "✅ Private Registry update completed!"
+            echo ""
+            echo "📋 Registry images:"
+            curl -s http://localhost:5000/v2/_catalog | jq '.'
+            curl -s http://localhost:5000/v2/backend/tags/list | jq '.'
+          ENDSSH
+          
+          echo "✅ Image successfully pushed to Private Registry"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -94,9 +134,9 @@ jobs:
 
       - name: Verify SSM connectivity
         run: |
-          echo "🔍 Checking SSM connectivity..."
+          echo "🔍 Checking SSM connectivity to App EC2..."
           PING_STATUS=$(aws ssm describe-instance-information \
-            --filters "Key=InstanceIds,Values=${{ secrets.EC2_INSTANCE_ID }}" \
+            --filters "Key=InstanceIds,Values=${{ secrets.APP_EC2_INSTANCE_ID }}" \
             --query "InstanceInformationList[0].PingStatus" \
             --output text 2>/dev/null || echo "Unknown")
           
@@ -111,40 +151,58 @@ jobs:
             exit 1
           fi
 
-      - name: Deploy to Private EC2 via SSM
+      - name: Deploy to App EC2 via SSM
         run: |
-          echo "🚀 Starting deployment..."
-          echo "📦 Docker image: ${{ secrets.DOCKER_USERNAME }}/community-backend:latest"
-          echo "🏷️  Commit SHA: ${{ github.sha }}"
-
+          echo "🚀 Starting deployment to App EC2 (Private Subnet)..."
+          echo "📍 Target: ${{ secrets.APP_EC2_INSTANCE_ID }}"
+          echo "📦 Image: 10.0.3.92:5000/backend:latest"
+          echo "🏷️  Commit: ${{ github.sha }}"
+          
           COMMAND_ID=$(aws ssm send-command \
-            --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
+            --instance-ids ${{ secrets.APP_EC2_INSTANCE_ID }} \
             --document-name "AWS-RunShellScript" \
-            --comment "Deploy community backend - Commit: ${{ github.sha }}" \
+            --comment "Deploy backend - Commit: ${{ github.sha }}" \
             --parameters 'commands=[
               "set -e",
               "echo \"===========================================\"",
-              "echo \"🚀 Deployment started at $(date)\"",
+              "echo \"🚀 Backend Deployment started at $(date)\"",
               "echo \"===========================================\"",
               "echo \"\"",
               "echo \"📂 Navigating to application directory...\"",
               "cd /home/ubuntu/app",
               "echo \"✅ Current directory: $(pwd)\"",
               "echo \"\"",
-              "echo \"🐳 Pulling latest Docker image...\"",
-              "docker compose pull backend",
-              "echo \"✅ Docker image pulled successfully\"",
+              "echo \"📄 Current docker-compose.yml:\"",
+              "grep -A 5 \"backend:\" docker-compose.yml || true",
               "echo \"\"",
-              "echo \"♻️  Restarting backend service...\"",
-              "docker compose up -d backend",
-              "echo \"✅ Backend service restarted\"",
+              "echo \"🐳 Pulling latest image from Private Registry (10.0.3.92:5000)...\"",
+              "if command -v docker compose &> /dev/null; then",
+              "  docker compose pull backend",
+              "elif command -v docker-compose &> /dev/null; then",
+              "  docker-compose pull backend",
+              "else",
+              "  echo \"❌ Docker Compose not found!\"",
+              "  exit 1",
+              "fi",
+              "echo \"✅ Image pulled successfully from Private Registry\"",
+              "echo \"\"",
+              "echo \"♻️  Restarting backend container...\"",
+              "if command -v docker compose &> /dev/null; then",
+              "  docker compose up -d backend",
+              "else",
+              "  docker-compose up -d backend",
+              "fi",
+              "echo \"✅ Backend container restarted\"",
               "echo \"\"",
               "echo \"🧹 Cleaning up old Docker images...\"",
               "docker image prune -f",
               "echo \"✅ Cleanup completed\"",
               "echo \"\"",
               "echo \"📊 Current running containers:\"",
-              "docker ps --filter name=backend --format \"table {{.Names}}\t{{.Status}}\t{{.Ports}}\"",
+              "docker ps --format \"table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}\"",
+              "echo \"\"",
+              "echo \"🔍 Backend container logs (last 10 lines):\"",
+              "docker logs backend --tail 10 || true",
               "echo \"\"",
               "echo \"===========================================\"",
               "echo \"✅ Deployment completed at $(date)\"",
@@ -153,16 +211,80 @@ jobs:
             --timeout-seconds 300 \
             --output text \
             --query "Command.CommandId")
+          
+          echo "📝 SSM Command ID: $COMMAND_ID"
+          echo "⏳ Waiting for deployment to complete (max 5 minutes)..."
+          echo ""
+          
+          # 배포 완료 대기
+          for i in {1..30}; do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id $COMMAND_ID \
+              --instance-id ${{ secrets.APP_EC2_INSTANCE_ID }} \
+              --query "Status" \
+              --output text 2>/dev/null || echo "Pending")
+          
+            echo "[$i/30] Deployment Status: $STATUS"
+          
+            if [ "$STATUS" = "Success" ]; then
+              echo ""
+              echo "✅ Deployment successful!"
+              echo ""
+              echo "==================== Deployment Output ===================="
+              aws ssm get-command-invocation \
+                --command-id $COMMAND_ID \
+                --instance-id ${{ secrets.APP_EC2_INSTANCE_ID }} \
+                --query "StandardOutputContent" \
+                --output text
+              echo "==========================================================="
+              exit 0
+            elif [ "$STATUS" = "Failed" ]; then
+              echo ""
+              echo "❌ Deployment failed!"
+              echo ""
+              echo "===================== Error Output ======================="
+              aws ssm get-command-invocation \
+                --command-id $COMMAND_ID \
+                --instance-id ${{ secrets.APP_EC2_INSTANCE_ID }} \
+                --query "StandardErrorContent" \
+                --output text
+              echo "=========================================================="
+              exit 1
+            elif [ "$STATUS" = "TimedOut" ]; then
+              echo ""
+              echo "⏱️ Deployment timed out!"
+              exit 1
+            elif [ "$STATUS" = "Cancelled" ]; then
+              echo ""
+              echo "🚫 Deployment was cancelled"
+              exit 1
+            fi
+          
+            sleep 10
+          done
+          
+          echo ""
+          echo "⏱️ Deployment timeout after 5 minutes!"
+          echo "🔗 Check AWS Systems Manager → Run Command for details"
+          exit 1
 
       - name: Deployment notification
         if: always()
         run: |
           if [ "${{ job.status }}" = "success" ]; then
-            echo "🎉 Deployment completed successfully!"
-            echo "📍 Instance: ${{ secrets.EC2_INSTANCE_ID }}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🎉 Backend Deployment Completed Successfully!"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "📍 Registry: 10.0.3.92:5000"
+            echo "📍 App Instance: ${{ secrets.APP_EC2_INSTANCE_ID }}"
             echo "🏷️  Version: ${{ github.sha }}"
+            echo "⏰ Time: $(date)"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           else
-            echo "⚠️ Deployment failed or was cancelled"
-            echo "📍 Instance: ${{ secrets.EC2_INSTANCE_ID }}"
-            echo "🔗 Check details: https://console.aws.amazon.com/systems-manager/run-command"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "⚠️ Backend Deployment Failed or Cancelled"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "📍 Instance: ${{ secrets.APP_EC2_INSTANCE_ID }}"
+            echo "🔗 Check: https://console.aws.amazon.com/systems-manager/run-command"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           fi
