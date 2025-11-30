@@ -87,6 +87,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: build-artifact
+          path: .  # ✅ 현재 폴더(루트)에 바로 풀어라! (이게 핵심)
+
+      # 확인 사살용: 파일이 진짜 있는지 리스트 출력 (디버깅용)
+      - name: Check file existence
+        run: ls -R
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
