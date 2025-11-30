@@ -62,7 +62,8 @@ jobs:
       # 4. JAR 파일 이름 변경 및 업로드 준비
       - name: Rename JAR and Prepare Artifacts
         run: |
-          mv build/libs/*.jar app.jar  # JAR 파일 이름을 app.jar로 통일
+          # 'plain'이 들어가지 않은 진짜 실행용 JAR 파일만 찾아서 app.jar로 변경
+          find build/libs -name "*.jar" ! -name "*plain.jar" -exec mv {} app.jar \;
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
