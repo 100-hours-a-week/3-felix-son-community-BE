@@ -17,7 +17,7 @@ env:
 
 jobs:
   # ====================================================
-  # JOB 1: 통합 테스트 (Docker Compose 활용)
+  # JOB 1: 통합 테스트 (Docker Compose 활용) & 빌드
   # ====================================================
   integration-test:
     runs-on: ubuntu-latest
@@ -32,50 +32,48 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # ✅ 여기가 핵심: docker compose로 DB 컨테이너만 실행!
-      # backend 앱까지 띄울 필요는 없고, 테스트 코드가 붙을 DB만 있으면 됩니다.
+      # ✅ docker compose로 DB 컨테이너만 실행 (최신 명령어: docker compose)
       - name: Start Database Container
         run: docker compose up -d db
 
-      # 테스트 코드(@SpringBootTest) 실행
-      # Host(Ubuntu)에서 실행되므로 localhost:3306으로 붙어야 함
+      # ✅ 테스트 코드(@SpringBootTest) 실행
       - name: Run Tests with Gradle
         run: ./gradlew test
         env:
           SPRING_PROFILES_ACTIVE: test
-          # docker compose가 3306 포트를 열어줬으므로 localhost로 접속 가능
           RDS_ENDPOINT: 127.0.0.1
           RDS_PORT: 3306
           RDS_DATABASE: testdb
           RDS_USERNAME: root
           RDS_PASSWORD: root
+          # JWT_SECRET: ${{ secrets.JWT_SECRET }} # 필요시 주석 해제
 
-      # 테스트 끝나면 컨테이너 정리 (선택 사항)
+      # ✅ 컨테이너 정리
       - name: Stop Containers
         if: always()
         run: docker compose down
 
-      # 테스트 통과 후 빌드
+      # ✅ 테스트 통과 후 빌드 (테스트 제외하여 속도 향상)
       - name: Build JAR
         run: ./gradlew build -x test
 
-      # 4. JAR 파일 이름 변경 및 업로드 준비
+      # ✅ JAR 파일 이름 변경 (plain jar 제외하고 app.jar로 통일)
       - name: Rename JAR and Prepare Artifacts
         run: |
-          # 'plain'이 들어가지 않은 진짜 실행용 JAR 파일만 찾아서 app.jar로 변경
           find build/libs -name "*.jar" ! -name "*plain.jar" -exec mv {} app.jar \;
 
+      # ✅ Artifact 업로드 (이름 바꾼 app.jar만)
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-artifact
           path: |
-            app.jar              # ✅ 이름 바꾼 JAR 파일
+            app.jar
             Dockerfile
             task-definition.json
 
   # ====================================================
-  # JOB 2: AWS 배포 (기존과 동일)
+  # JOB 2: Docker 이미지 빌드 & AWS ECS 배포
   # ====================================================
   deploy:
     needs: integration-test
@@ -83,13 +81,14 @@ jobs:
     environment: production
 
     steps:
+      # ✅ Artifact 다운로드 (현재 폴더 . 에 바로 풀기)
       - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
           name: build-artifact
-          path: .  # ✅ 현재 폴더(루트)에 바로 풀어라! (이게 핵심)
+          path: .
 
-      # 확인 사살용: 파일이 진짜 있는지 리스트 출력 (디버깅용)
+      # ✅ 파일 위치 디버깅 (확인용)
       - name: Check file existence
         run: ls -R
 
@@ -100,11 +99,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # ✅ ECR 로그인 (v2 버전 사용 필수)
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 배포용 이미지는 docker build로 가볍게 만듦 (docker compose 불필요)
+      # ✅ Docker Build & Push
       - name: Build, tag, and push image to Amazon ECR
         id: build-image
         env:
@@ -115,6 +115,7 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
+      # ✅ Task Definition 업데이트
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
@@ -123,6 +124,7 @@ jobs:
           container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ steps.build-image.outputs.image }}
 
+      # ✅ 최종 배포 (ECS Service Update)
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
