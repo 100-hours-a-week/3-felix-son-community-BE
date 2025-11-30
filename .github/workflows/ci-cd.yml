@@ -59,13 +59,17 @@ jobs:
       - name: Build JAR
         run: ./gradlew build -x test
 
-      # 다음 Job을 위해 아티팩트 업로드
+      # 4. JAR 파일 이름 변경 및 업로드 준비
+      - name: Rename JAR and Prepare Artifacts
+        run: |
+          mv build/libs/*.jar app.jar  # JAR 파일 이름을 app.jar로 통일
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-artifact
           path: |
-            build/libs/*.jar
+            app.jar              # ✅ 이름 바꾼 JAR 파일
             Dockerfile
             task-definition.json
 
