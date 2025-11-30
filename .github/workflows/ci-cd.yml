@@ -92,7 +92,7 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v4
+        uses: aws-actions/amazon-ecr-login@v2
 
       # 배포용 이미지는 docker build로 가볍게 만듦 (docker compose 불필요)
       - name: Build, tag, and push image to Amazon ECR
