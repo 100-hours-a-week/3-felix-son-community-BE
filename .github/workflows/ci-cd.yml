@@ -1,298 +1,122 @@
-name: CI/CD Pipeline
+name: Java CI/CD with Docker Compose & AWS ECS
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: backend-api
+  ECS_SERVICE: backend-api
+  ECS_CLUSTER: Fargate-Cluster
+  ECS_TASK_DEFINITION: task-definition.json
+  CONTAINER_NAME: BE-Container
 
 jobs:
-  test:
-    name: Test
+  # ====================================================
+  # JOB 1: 통합 테스트 (Docker Compose 활용)
+  # ====================================================
+  integration-test:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      # ✅ 여기가 핵심: docker-compose로 DB 컨테이너만 실행!
+      # backend 앱까지 띄울 필요는 없고, 테스트 코드가 붙을 DB만 있으면 됩니다.
+      - name: Start Database Container
+        run: docker-compose up -d db
 
-      - name: Run tests
-        run: ./gradlew clean test
+      # 테스트 코드(@SpringBootTest) 실행
+      # Host(Ubuntu)에서 실행되므로 localhost:3306으로 붙어야 함
+      - name: Run Tests with Gradle
+        run: ./gradlew test
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          # docker-compose가 3306 포트를 열어줬으므로 localhost로 접속 가능
+          RDS_ENDPOINT: 127.0.0.1
+          RDS_PORT: 3306
+          RDS_DATABASE: testdb
+          RDS_USERNAME: root
+          RDS_PASSWORD: root
 
-      - name: Generate test report
-        run: ./gradlew jacocoTestReport
-
-      - name: Upload test results
+      # 테스트 끝나면 컨테이너 정리 (선택 사항)
+      - name: Stop Containers
         if: always()
+        run: docker-compose down
+
+      # 테스트 통과 후 빌드
+      - name: Build JAR
+        run: ./gradlew build -x test
+
+      # 다음 Job을 위해 아티팩트 업로드
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
-          path: build/reports/tests/test/
+          name: build-artifact
+          path: |
+            build/libs/*.jar
+            Dockerfile
+            task-definition.json
 
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: build/reports/jacoco/test/
-
-      - name: Comment test coverage
-        if: github.event_name == 'pull_request'
-        uses: madrapps/jacoco-report@v1.6.1
-        with:
-          paths: ${{ github.workspace }}/build/reports/jacoco/test/jacocoTestReport.xml
-          token: ${{ secrets.GITHUB_TOKEN }}
-          min-coverage-overall: 70
-          min-coverage-changed-files: 80
-
-  build-and-deploy:
-    name: Build and Deploy
-    needs: test
+  # ====================================================
+  # JOB 2: AWS 배포 (기존과 동일)
+  # ====================================================
+  deploy:
+    needs: integration-test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    environment: production
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Build Docker image
-        run: |
-          echo "🏗️ Building Docker image..."
-          docker build -t backend:${{ github.sha }} .
-          docker save backend:${{ github.sha }} -o /tmp/backend-image.tar
-
-          # Base64 인코딩 (SSM 전송용)
-          echo "📦 Encoding image for transfer..."
-          base64 /tmp/backend-image.tar > /tmp/backend-image.tar.b64
-
-          # 파일을 여러 조각으로 분할 (SSM 파라미터 크기 제한 4KB)
-          split -b 3000 /tmp/backend-image.tar.b64 /tmp/image-part-
-
-          echo "✅ Image prepared for SSM transfer"
-          echo "📊 Original size: $(du -h /tmp/backend-image.tar | cut -f1)"
-          echo "📊 Encoded size: $(du -h /tmp/backend-image.tar.b64 | cut -f1)"
-          echo "📊 Number of parts: $(ls /tmp/image-part-* | wc -l)"
+          name: build-artifact
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Verify SSM connectivity
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v4
+
+      # 배포용 이미지는 docker build로 가볍게 만듦 (docker-compose 불필요)
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          echo "🔍 Checking SSM connectivity..."
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-          # Nginx EC2 확인
-          NGINX_STATUS=$(aws ssm describe-instance-information \
-            --filters "Key=InstanceIds,Values=${{ secrets.NGINX_EC2_INSTANCE_ID }}" \
-            --query "InstanceInformationList[0].PingStatus" \
-            --output text 2>/dev/null || echo "Unknown")
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
 
-          if [ "$NGINX_STATUS" = "Online" ]; then
-            echo "✅ Nginx EC2 - SSM Agent is online"
-          else
-            echo "❌ Nginx EC2 - SSM Agent status: $NGINX_STATUS"
-            exit 1
-          fi
-
-          # App EC2 확인
-          APP_STATUS=$(aws ssm describe-instance-information \
-            --filters "Key=InstanceIds,Values=${{ secrets.APP_EC2_INSTANCE_ID }}" \
-            --query "InstanceInformationList[0].PingStatus" \
-            --output text 2>/dev/null || echo "Unknown")
-
-          if [ "$APP_STATUS" = "Online" ]; then
-            echo "✅ App EC2 - SSM Agent is online"
-          else
-            echo "❌ App EC2 - SSM Agent status: $APP_STATUS"
-            exit 1
-          fi
-
-      - name: Upload image to S3 (Intermediate storage)
-        run: |
-          echo "📤 Uploading Docker image to S3..."
-          aws s3 cp /tmp/backend-image.tar s3://${{ secrets.S3_BUCKET_NAME }}/docker-images/backend-${{ github.sha }}.tar
-          echo "✅ Image uploaded to S3"
-
-      - name: Load image to Private Registry via SSM
-        run: |
-          echo "🚀 Loading image to Private Registry via SSM..."
-
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids ${{ secrets.NGINX_EC2_INSTANCE_ID }} \
-            --document-name "AWS-RunShellScript" \
-            --comment "Load backend image to registry - Commit: ${{ github.sha }}" \
-            --parameters 'commands=[
-              "set -e",
-              "echo \"===========================================\"",
-              "echo \"📥 Downloading image from S3...\"",
-              "aws s3 cp s3://${{ secrets.S3_BUCKET_NAME }}/docker-images/backend-${{ github.sha }}.tar /tmp/backend-image.tar",
-              "echo \"✅ Image downloaded\"",
-              "echo \"\"",
-              "echo \"🐳 Loading Docker image...\"",
-              "docker load < /tmp/backend-image.tar",
-              "echo \"✅ Image loaded to Docker\"",
-              "echo \"\"",
-              "echo \"🏷️  Tagging image for Private Registry...\"",
-              "docker tag backend:${{ github.sha }} localhost:5000/backend:latest",
-              "docker tag backend:${{ github.sha }} localhost:5000/backend:${{ github.sha }}",
-              "echo \"✅ Image tagged\"",
-              "echo \"\"",
-              "echo \"⬆️  Pushing to Private Registry...\"",
-              "docker push localhost:5000/backend:latest",
-              "docker push localhost:5000/backend:${{ github.sha }}",
-              "echo \"✅ Image pushed to Private Registry\"",
-              "echo \"\"",
-              "echo \"🧹 Cleaning up...\"",
-              "rm -f /tmp/backend-image.tar",
-              "docker rmi backend:${{ github.sha }} || true",
-              "echo \"✅ Cleanup completed\"",
-              "echo \"\"",
-              "echo \"📋 Registry images:\"",
-              "curl -s http://localhost:5000/v2/_catalog | jq \".\"",
-              "curl -s http://localhost:5000/v2/backend/tags/list | jq \".\"",
-              "echo \"===========================================\""
-            ]' \
-            --timeout-seconds 600 \
-            --output text \
-            --query "Command.CommandId")
-
-          echo "📝 Command ID: $COMMAND_ID"
-          echo "⏳ Waiting for image upload (max 10 minutes)..."
-
-          # 명령 완료 대기
-          for i in {1..60}; do
-            STATUS=$(aws ssm get-command-invocation \
-              --command-id $COMMAND_ID \
-              --instance-id ${{ secrets.NGINX_EC2_INSTANCE_ID }} \
-              --query "Status" \
-              --output text 2>/dev/null || echo "Pending")
-
-            echo "[$i/60] Registry Upload Status: $STATUS"
-
-            if [ "$STATUS" = "Success" ]; then
-              echo ""
-              echo "✅ Image successfully uploaded to Private Registry!"
-              aws ssm get-command-invocation \
-                --command-id $COMMAND_ID \
-                --instance-id ${{ secrets.NGINX_EC2_INSTANCE_ID }} \
-                --query "StandardOutputContent" \
-                --output text
-              break
-            elif [ "$STATUS" = "Failed" ]; then
-              echo ""
-              echo "❌ Registry upload failed!"
-              aws ssm get-command-invocation \
-                --command-id $COMMAND_ID \
-                --instance-id ${{ secrets.NGINX_EC2_INSTANCE_ID }} \
-                --query "StandardErrorContent" \
-                --output text
-              exit 1
-            fi
-
-            sleep 10
-          done
-
-      - name: Deploy to App EC2 via SSM
-        run: |
-          echo "🚀 Deploying to App EC2..."
-
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids ${{ secrets.APP_EC2_INSTANCE_ID }} \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy backend - Commit: ${{ github.sha }}" \
-            --parameters 'commands=[
-              "set -e",
-              "echo \"===========================================\"",
-              "echo \"🚀 Backend Deployment started at $(date)\"",
-              "echo \"===========================================\"",
-              "cd /home/ubuntu/app",
-              "echo \"🐳 Pulling from Private Registry...\"",
-              "docker compose pull backend || docker-compose pull backend",
-              "echo \"♻️  Restarting backend...\"",
-              "docker compose up -d backend || docker-compose up -d backend",
-              "echo \"🧹 Cleaning up...\"",
-              "docker image prune -f",
-              "echo \"📊 Running containers:\"",
-              "docker ps --format \"table {{.Names}}\t{{.Image}}\t{{.Status}}\"",
-              "echo \"✅ Deployment completed at $(date)\"",
-              "echo \"==========================================\""
-            ]' \
-            --timeout-seconds 300 \
-            --output text \
-            --query "Command.CommandId")
-
-          echo "📝 Command ID: $COMMAND_ID"
-          echo "⏳ Waiting for deployment..."
-
-          for i in {1..30}; do
-            STATUS=$(aws ssm get-command-invocation \
-              --command-id $COMMAND_ID \
-              --instance-id ${{ secrets.APP_EC2_INSTANCE_ID }} \
-              --query "Status" \
-              --output text 2>/dev/null || echo "Pending")
-
-            echo "[$i/30] Deploy Status: $STATUS"
-
-            if [ "$STATUS" = "Success" ]; then
-              echo ""
-              echo "✅ Deployment successful!"
-              aws ssm get-command-invocation \
-                --command-id $COMMAND_ID \
-                --instance-id ${{ secrets.APP_EC2_INSTANCE_ID }} \
-                --query "StandardOutputContent" \
-                --output text
-              exit 0
-            elif [ "$STATUS" = "Failed" ]; then
-              echo ""
-              echo "❌ Deployment failed!"
-              aws ssm get-command-invocation \
-                --command-id $COMMAND_ID \
-                --instance-id ${{ secrets.APP_EC2_INSTANCE_ID }} \
-                --query "StandardErrorContent" \
-                --output text
-              exit 1
-            fi
-
-            sleep 10
-          done
-
-      - name: Cleanup S3
-        if: always()
-        run: |
-          echo "🧹 Cleaning up S3..."
-          aws s3 rm s3://${{ secrets.S3_BUCKET_NAME }}/docker-images/backend-${{ github.sha }}.tar || true
-          echo "✅ S3 cleanup completed"
-
-      - name: Deployment notification
-        if: always()
-        run: |
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "🎉 Backend Deployment Completed!"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "📍 Registry: 10.0.3.92:5000"
-            echo "📍 App: ${{ secrets.APP_EC2_INSTANCE_ID }}"
-            echo "🏷️  Version: ${{ github.sha }}"
-            echo "🔒 Security: SSM Only (No SSH port open!)"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          else
-            echo "⚠️ Deployment failed"
-          fi
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
