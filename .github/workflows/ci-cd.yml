@@ -32,10 +32,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # ✅ 여기가 핵심: docker-compose로 DB 컨테이너만 실행!
+      # ✅ 여기가 핵심: docker compose로 DB 컨테이너만 실행!
       # backend 앱까지 띄울 필요는 없고, 테스트 코드가 붙을 DB만 있으면 됩니다.
       - name: Start Database Container
-        run: docker-compose up -d db
+        run: docker compose up -d db
 
       # 테스트 코드(@SpringBootTest) 실행
       # Host(Ubuntu)에서 실행되므로 localhost:3306으로 붙어야 함
@@ -43,7 +43,7 @@ jobs:
         run: ./gradlew test
         env:
           SPRING_PROFILES_ACTIVE: test
-          # docker-compose가 3306 포트를 열어줬으므로 localhost로 접속 가능
+          # docker compose가 3306 포트를 열어줬으므로 localhost로 접속 가능
           RDS_ENDPOINT: 127.0.0.1
           RDS_PORT: 3306
           RDS_DATABASE: testdb
@@ -53,7 +53,7 @@ jobs:
       # 테스트 끝나면 컨테이너 정리 (선택 사항)
       - name: Stop Containers
         if: always()
-        run: docker-compose down
+        run: docker compose down
 
       # 테스트 통과 후 빌드
       - name: Build JAR
@@ -94,7 +94,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v4
 
-      # 배포용 이미지는 docker build로 가볍게 만듦 (docker-compose 불필요)
+      # 배포용 이미지는 docker build로 가볍게 만듦 (docker compose 불필요)
       - name: Build, tag, and push image to Amazon ECR
         id: build-image
         env:
