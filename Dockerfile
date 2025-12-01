@@ -1,5 +1,5 @@
-# 실행 전용 경량 이미지 사용 (빌드 도구 필요 없음)
-FROM eclipse-temurin:17-jdk-alpine
+# 실행 전용 경량 이미지 사용
+FROM eclipse-temurin:21-jdk-alpine
 
 # 작업 디렉토리 설정
 WORKDIR /app
