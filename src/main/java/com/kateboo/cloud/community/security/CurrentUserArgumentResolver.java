@@ -1,6 +1,8 @@
 package com.kateboo.cloud.community.security;
 
+import com.kateboo.cloud.community.exception.UnauthorizedException;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -11,6 +13,7 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 import java.util.UUID;
 
 @Component
+@Slf4j
 public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolver {
 
     @Override
@@ -24,15 +27,15 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
                                   ModelAndViewContainer mavContainer,
                                   NativeWebRequest webRequest,
                                   WebDataBinderFactory binderFactory) {
-        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
 
-        if (request != null) {
-            Object userId = request.getAttribute("userId");
-            if (userId instanceof UUID) {
-                return userId;
-            }
+        HttpServletRequest request = (HttpServletRequest) webRequest.getNativeRequest();
+        UUID userId = (UUID) request.getAttribute("userId");
+
+        if (userId == null) {
+            log.error("@CurrentUser를 사용했지만 userId가 null입니다. 인증이 필요합니다.");
+            throw new UnauthorizedException("로그인이 필요합니다.");
         }
 
-        return null;
+        return userId;
     }
 }

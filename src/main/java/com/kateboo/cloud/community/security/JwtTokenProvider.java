@@ -1,6 +1,8 @@
 package com.kateboo.cloud.community.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
@@ -46,13 +48,20 @@ public class JwtTokenProvider {
         return UUID.fromString(claims.getSubject());
     }
 
+    // ⭐ 수정: 예외를 그대로 던짐
     public boolean validateToken(String token) {
         try {
             parseClaims(token);
             return true;
+        } catch (ExpiredJwtException e) {
+            log.error("JWT 토큰 만료: {}", e.getMessage());
+            throw e;
+        } catch (JwtException e) {
+            log.error("JWT 검증 실패: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
-            log.error("JWT 토큰 검증 실패: {}", e.getMessage());
-            return false;
+            log.error("JWT 처리 중 오류: {}", e.getMessage());
+            throw new JwtException("JWT 처리 중 오류가 발생했습니다.", e);
         }
     }
 

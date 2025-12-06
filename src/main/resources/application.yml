@@ -45,9 +45,9 @@ upload:
 jwt:
   secret: ${JWT_SECRET:jJL3Qj7Woc6nbKRio88jiCf1sJe2O4E0UPDlgoThtuhKw6+zOdQVZCzfH69HGemxred88CuldHxjff8Kj0Btmw==}
   access-token:
-    expiration: 900000
-  refresh-token:
-    expiration: 604800000
+    expiration: 1800000      # 30분 (1800000ms)
+    refresh-token:
+      expiration: 1209600000   # 14일 (1209600000ms)
 
 logging:
   level:
