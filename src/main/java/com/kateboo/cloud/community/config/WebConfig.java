@@ -43,14 +43,6 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowCredentials(true)
                 .exposedHeaders("Authorization");
 
-        // ⭐ 약관 페이지 CORS 추가
-        registry.addMapping("/terms/**")
-                .allowedOriginPatterns("*")
-                .allowedMethods("GET", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true);
-
-        log.info("CORS 설정 완료: /api/**, /terms/**");
     }
 
     @Override
@@ -58,6 +50,5 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/uploads/images/**")
                 .addResourceLocations("file:" + uploadDir + "/");
 
-        log.info("정적 리소스 핸들러 등록 완료");
     }
 }

@@ -31,7 +31,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 인증이 필요 없는 경로
         return path.startsWith("/api/auth/") ||
                 path.startsWith("/uploads/") ||
-                path.startsWith("/terms/") ||
+                path.startsWith("/api/terms/") ||
                 path.startsWith("/css/") ||
                 path.startsWith("/js/") ||
                 path.startsWith("/images/");
@@ -52,24 +52,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 log.debug("인증 성공: userId={}", userId);
             }
 
-            // ⭐ 정상 처리 - 다음 필터로 진행
             filterChain.doFilter(request, response);
 
         } catch (ExpiredJwtException e) {
-            // ⭐ 토큰 만료
-            log.error("JWT 토큰 만료: {}", e.getMessage());
             sendUnauthorizedError(response, "토큰이 만료되었습니다.");
             return;
 
         } catch (JwtException e) {
-            // ⭐ JWT 검증 실패
-            log.error("JWT 검증 실패: {}", e.getMessage());
             sendUnauthorizedError(response, "유효하지 않은 토큰입니다.");
             return;
 
         } catch (Exception e) {
-            // ⭐ 기타 예외
-            log.error("JWT 인증 처리 중 오류: {}", e.getMessage(), e);
             sendUnauthorizedError(response, "인증 처리 중 오류가 발생했습니다.");
             return;
         }
