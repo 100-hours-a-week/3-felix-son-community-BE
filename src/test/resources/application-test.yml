@@ -47,9 +47,9 @@ upload:
 jwt:
   secret: dGVzdC1zZWNyZXQta2V5LWZvci10ZXN0aW5nLW1pbmltdW0tMjU2LWJpdHMtcmVxdWlyZWQtMTIzNDU2Nzg5MGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=
   access-token:
-    expiration: 3600000
+    expiration: 1800000      # 30분 (1800000ms)
   refresh-token:
-    expiration: 604800000
+    expiration: 1209600000   # 14일 (1209600000ms)
 
 logging:
   level:
