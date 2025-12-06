@@ -35,12 +35,22 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        // API 엔드포인트 CORS
         registry.addMapping("/api/**")
                 .allowedOriginPatterns("*")
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
                 .exposedHeaders("Authorization");
+
+        // ⭐ 약관 페이지 CORS 추가
+        registry.addMapping("/terms/**")
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true);
+
+        log.info("CORS 설정 완료: /api/**, /terms/**");
     }
 
     @Override
