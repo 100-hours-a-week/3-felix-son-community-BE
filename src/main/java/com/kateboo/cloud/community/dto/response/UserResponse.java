@@ -5,8 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Getter
@@ -20,7 +19,7 @@ public class UserResponse {
     private String nickname;
     private String profileImageUrl;
     private Boolean isActive;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public static UserResponse from(User user) {
         if (user == null) {

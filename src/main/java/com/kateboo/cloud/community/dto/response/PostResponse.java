@@ -3,6 +3,7 @@ package com.kateboo.cloud.community.dto.response;
 import com.kateboo.cloud.community.entity.Post;
 import lombok.*;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,8 +20,8 @@ public class PostResponse {
     private UUID postId;
     private String title;
     private String body;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 
     private UserSummaryResponse user;
 

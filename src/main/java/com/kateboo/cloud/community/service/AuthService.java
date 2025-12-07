@@ -18,7 +18,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -157,15 +159,15 @@ public class AuthService {
         boolean accountRestored = false;
 
         if (!user.getIsActive()) {
-            LocalDateTime deactivatedAt = user.getDeactivatedAt();
+            Instant deactivatedAt = user.getDeactivatedAt();
 
             if (deactivatedAt == null) {
                 log.error("비활성 계정이지만 deactivated_at이 null: userId={}", user.getUserId());
                 throw new BadRequestException("이메일 또는 비밀번호가 올바르지 않습니다");
             }
 
-            LocalDateTime now = LocalDateTime.now();
-            LocalDateTime recoveryDeadline = deactivatedAt.plusDays(DEACTIVATION_GRACE_PERIOD_DAYS);
+            Instant now = Instant.now();
+            Instant recoveryDeadline = deactivatedAt.plus(DEACTIVATION_GRACE_PERIOD_DAYS, ChronoUnit.DAYS);
 
             if (now.isAfter(recoveryDeadline)) {
                 log.error("로그인 실패: 복구 기간 만료 - userId={}, deactivatedAt={}",
@@ -201,7 +203,7 @@ public class AuthService {
                     return new NotFoundException("유효하지 않은 RefreshToken입니다");
                 });
 
-        if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (refreshToken.getExpiresAt().isBefore(Instant.now())) {
             log.warn("만료된 RefreshToken: userId={}", refreshToken.getUser().getUserId());
             refreshTokenRepository.delete(refreshToken);
             throw new BadRequestException("만료된 RefreshToken입니다");
@@ -233,7 +235,7 @@ public class AuthService {
                 .orElse(null);
 
         if (refreshToken != null) {
-            refreshToken.setRevokedAt(LocalDateTime.now());
+            refreshToken.setRevokedAt(Instant.now());
             log.info("로그아웃: userId={}", refreshToken.getUser().getUserId());
         } else {
             log.warn("로그아웃 시도: 유효하지 않은 Refresh Token");
@@ -249,7 +251,7 @@ public class AuthService {
         RefreshToken refreshToken = RefreshToken.builder()
                 .token(refreshTokenValue)
                 .user(user)
-                .expiresAt(LocalDateTime.now().plusSeconds(refreshTokenExpiration / 1000))
+                .expiresAt(Instant.now().plusSeconds(refreshTokenExpiration / 1000))
                 .build();
 
         refreshTokenRepository.save(refreshToken);

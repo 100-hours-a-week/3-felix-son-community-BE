@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -120,7 +120,7 @@ public class PostService {
 
         post.setTitle(request.getTitle());
         post.setBody(request.getBody());
-        post.setUpdatedAt(LocalDateTime.now());
+        post.setUpdatedAt(Instant.now());
 
         if (request.getImageUrls() != null) {
             post.getPostImages().clear();

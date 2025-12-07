@@ -3,6 +3,7 @@ package com.kateboo.cloud.community.dto.response;
 import com.kateboo.cloud.community.entity.Comment;
 import lombok.*;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -17,8 +18,8 @@ public class CommentResponse {
     private String body;
     private UserSummaryResponse user;
     private UUID postId;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 
     public static CommentResponse from(Comment comment) {
         return CommentResponse.builder()

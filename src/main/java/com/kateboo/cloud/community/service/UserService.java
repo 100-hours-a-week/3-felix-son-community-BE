@@ -14,7 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -84,7 +85,7 @@ public class UserService {
         }
 
         user.setIsActive(false);
-        user.setDeactivatedAt(LocalDateTime.now());
+        user.setDeactivatedAt(Instant.now());
 
         refreshTokenRepository.deleteByUser_UserId(userId);
 
@@ -103,10 +104,10 @@ public class UserService {
         }
 
         if (user.getDeactivatedAt() != null) {
-            LocalDateTime expiryDate = user.getDeactivatedAt()
-                    .plusDays(DEACTIVATION_GRACE_PERIOD_DAYS);
+            Instant expiryDate = user.getDeactivatedAt()
+                    .plus(DEACTIVATION_GRACE_PERIOD_DAYS,ChronoUnit.DAYS);
 
-            if (LocalDateTime.now().isBefore(expiryDate)) {
+            if (Instant.now().isBefore(expiryDate)) {
                 user.setIsActive(true);
                 user.setDeactivatedAt(null);
                 userRepository.save(user);
@@ -134,10 +135,10 @@ public class UserService {
         }
 
         if (user.getDeactivatedAt() != null) {
-            LocalDateTime expiryDate = user.getDeactivatedAt()
-                    .plusDays(DEACTIVATION_GRACE_PERIOD_DAYS);
+            Instant expiryDate = user.getDeactivatedAt()
+                    .plus(DEACTIVATION_GRACE_PERIOD_DAYS, ChronoUnit.DAYS);
 
-            if (LocalDateTime.now().isAfter(expiryDate)) {
+            if (Instant.now().isAfter(expiryDate)) {
                 log.warn("복구 기간 만료 - userId: {}, deactivatedAt: {}", userId, user.getDeactivatedAt());
                 throw new BadRequestException("복구 기간(" + DEACTIVATION_GRACE_PERIOD_DAYS + "일)이 지났습니다.");
             }
@@ -153,8 +154,8 @@ public class UserService {
 
     @Transactional
     public void deleteExpiredAccounts() {
-        LocalDateTime cutoffDate = LocalDateTime.now()
-                .minusDays(DEACTIVATION_GRACE_PERIOD_DAYS);
+        Instant cutoffDate = Instant.now()
+                .minus(DEACTIVATION_GRACE_PERIOD_DAYS, ChronoUnit.DAYS);
 
         List<User> expiredUsers = userRepository
                 .findByIsActiveFalseAndDeactivatedAtBefore(cutoffDate);

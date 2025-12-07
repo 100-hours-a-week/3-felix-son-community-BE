@@ -3,7 +3,6 @@ package com.kateboo.cloud.community.exception;
 import com.kateboo.cloud.community.dto.response.ErrorResponse;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
-import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -11,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
@@ -26,7 +25,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.UNAUTHORIZED.value(),
                 "토큰이 만료되었습니다.",
-                LocalDateTime.now());
+                Instant.now());
 
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }
@@ -39,7 +38,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.UNAUTHORIZED.value(),
                 "유효하지 않은 토큰입니다.",
-                LocalDateTime.now());
+                Instant.now());
 
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }
@@ -50,7 +49,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
-                LocalDateTime.now());
+                Instant.now());
 
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
@@ -61,7 +60,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
                 ex.getMessage(),
-                LocalDateTime.now());
+                Instant.now());
 
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
     }
@@ -72,7 +71,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.UNAUTHORIZED.value(),
                 ex.getMessage(),
-                LocalDateTime.now());
+                Instant.now());
 
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }
@@ -83,7 +82,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.FORBIDDEN.value(),
                 ex.getMessage(),
-                LocalDateTime.now());
+                Instant.now());
 
         return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
     }
@@ -93,7 +92,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
-                LocalDateTime.now());
+                Instant.now());
 
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
@@ -114,7 +113,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
                 message,
-                LocalDateTime.now());
+                Instant.now());
 
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
@@ -128,7 +127,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 errorMessages,
-                LocalDateTime.now());
+                Instant.now());
 
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
@@ -142,7 +141,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "서버 내부 오류가 발생했습니다",
-                LocalDateTime.now());
+                Instant.now());
 
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }

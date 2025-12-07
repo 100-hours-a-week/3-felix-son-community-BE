@@ -18,7 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
@@ -70,7 +70,7 @@ public class CommentService {
         }
 
         comment.setBody(request.getBody());
-        comment.setUpdatedAt(LocalDateTime.now());
+        comment.setUpdatedAt(Instant.now());
 
         log.info("댓글 수정 완료: commentId={}, userId={}", commentId, userId);
 
